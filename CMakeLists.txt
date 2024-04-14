@@ -21,12 +21,12 @@ if(PARSER_COMPILE_STATIC_LIBRARY)
 endif() # PARSER_COMPILE_STATIC_LIBRARY
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-  if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    compile_options(${PROJECT_NAME}_obj PUBLIC /W4 /Ox)
+  if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
+    add_compile_options(/W4 /Ox)
   endif()
 else()
-  if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    compile_options(${PROJECT_NAME}_obj PUBLIC /W4 /Od /Zi /ZI /RTC1 /RTCs /RTCsuc /MP)
+  if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
+    add_compile_options(/W4 /Od /ZI /RTC1 /RTCs /RTCsuc /MP)
   endif()
 endif()
 

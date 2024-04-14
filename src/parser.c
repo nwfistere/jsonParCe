@@ -7,7 +7,13 @@
   do {                                                                         \
     parser->nread = nread;                                                     \
     parser->err = (e);                                                         \
-  } while (0);
+  } while (0)
+#define RETURN(V)                                                              \
+  do {                                                                         \
+    parser->nread = nread;                                                     \
+    parser->state = p_state;                                                   \
+    return (V);                                                                \
+  } while (0)
 
 #define JSON_ERRNO(parser) ((enum json_errno)(parser->err))
 
@@ -47,6 +53,19 @@
 // #define MARK_OBJECT_VALUE_LENGTH(P) parser->object_value_len = ((P) -
 // parser->object_value_mark)
 
+#define _OBJECT_CALLBACK(VALUE_LENGTH)                                         \
+  if (callbacks->on_object_key_value_pair) {                                   \
+    if (callbacks->on_object_key_value_pair(                                   \
+            parser, parser->object_key_mark, parser->object_key_len,           \
+            parser->object_value_mark, (VALUE_LENGTH))) {                      \
+      SET_ERRNO(ERRNO_CALLBACK_FAILED);                                        \
+      goto error;                                                              \
+    }                                                                          \
+  }
+#define OBJECT_CALLBACK() _OBJECT_CALLBACK((p - parser->object_value_mark) + 1)
+#define OBJECT_CALLBACK_NOADVANCE()                                            \
+  _OBJECT_CALLBACK((p - parser->object_value_mark))
+
 #define OB '['
 #define CB ']'
 #define OCB '{'
@@ -70,19 +89,13 @@ enum state {
   s_parse_array,
   s_parse_array_string,
   s_parse_array_numeric,
-  // s_parse_array_n,
   s_parse_array_nu,
   s_parse_array_nul,
-  // s_parse_array_null,
-  // s_parse_array_t,
   s_parse_array_tr,
   s_parse_array_tru,
-  // s_parse_array_true,
-  // s_parse_array_f,
   s_parse_array_fa,
   s_parse_array_fal,
   s_parse_array_fals,
-  // s_parse_array_false,
   s_parse_array_find_array_end,
   s_parse_array_find_array_end_string_end,
   s_parse_array_find_object_end_string_end,
@@ -106,7 +119,8 @@ enum state {
   s_parse_object_value_find_array_end_string_end,
   s_parse_object_value_find_object_end,
   s_parse_object_value_find_object_end_string_end,
-  s_parse_object_value_end
+  s_parse_object_value_end,
+  s_done
 };
 
 void json_parser_init(json_parser *parser) {
@@ -156,6 +170,8 @@ size_t json_parser_execute(json_parser *parser,
       } else if (ch == OCB) {
         UPDATE_STATE(s_parse_array_find_object_end);
         REEXECUTE();
+      } else if (ch == CB) {
+        UPDATE_STATE(s_done);
       } else if (ch == QM) {
         UPDATE_STATE(s_parse_array_string);
       } else if (ch == 't') {
@@ -276,22 +292,24 @@ size_t json_parser_execute(json_parser *parser,
       }
     }
     case s_parse_object: {
-      if (IS_WHITESPACE(ch)) {
+      if (IS_WHITESPACE(ch) || ch == COMMA) {
         break;
       }
       if (ch == QM) {
-        MARK_OBJECT_KEY_START(p);
+        MARK_OBJECT_KEY_START(p + 1);
         UPDATE_STATE(s_parse_object_parse_key);
-        REEXECUTE();
+      } else if (ch == CCB) {
+        UPDATE_STATE(s_done);
       } else {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
       }
+      break;
     }
     case s_parse_object_parse_key: {
       // TODO combine with s_parse_array_find_array_end_string_end
       if (ch == QM) {
-        UPDATE_STATE(s_parse_array_item_end);
+        UPDATE_STATE(s_parse_object_parse_key_end);
         REEXECUTE();
       } else if (ch == '\\') {
         p++; // Skip escaped characters.
@@ -300,6 +318,8 @@ size_t json_parser_execute(json_parser *parser,
     }
     case s_parse_object_parse_key_end: {
       MARK_OBJECT_KEY_LENGTH(p);
+      UPDATE_STATE(s_parse_object_colon);
+      break;
     }
     case s_parse_object_colon: {
       if (IS_WHITESPACE(ch)) {
@@ -318,16 +338,18 @@ size_t json_parser_execute(json_parser *parser,
         UPDATE_STATE(s_parse_object_value_string);
       } else if (ch == OCB) {
         UPDATE_STATE(s_parse_object_value_find_object_end);
+        REEXECUTE();
       } else if (ch == OB) {
         UPDATE_STATE(s_parse_object_value_find_array_end);
+        REEXECUTE();
       } else if (ch == 't') {
-        UPDATE_STATE(s_parse_array_tr);
+        UPDATE_STATE(s_parse_object_value_tr);
       } else if (ch == 'f') {
-        UPDATE_STATE(s_parse_array_fa);
+        UPDATE_STATE(s_parse_object_value_fa);
       } else if (ch == 'n') {
-        UPDATE_STATE(s_parse_array_nu);
+        UPDATE_STATE(s_parse_object_value_nu);
       } else if (IS_NUMERIC(ch)) {
-        UPDATE_STATE(s_parse_array_numeric)
+        UPDATE_STATE(s_parse_object_value_numeric)
       }
       break;
     }
@@ -343,9 +365,10 @@ size_t json_parser_execute(json_parser *parser,
     }
     case s_parse_object_value_numeric: {
       if (ch == COMMA) {
-        UPDATE_STATE(s_parse_object_value_end);
-        REEXECUTE();
+        OBJECT_CALLBACK_NOADVANCE();
+        UPDATE_STATE(s_parse_object);
       }
+      break;
     }
     case s_parse_object_value_nu: {
       UPDATE_STATE(s_parse_object_value_nul);
@@ -426,15 +449,15 @@ size_t json_parser_execute(json_parser *parser,
       break;
     }
     case s_parse_object_value_end: {
-      if (callbacks->on_object_key_value_pair) {
-        if (callbacks->on_object_key_value_pair(
-                parser, parser->object_key_mark, parser->object_key_len,
-                parser->object_key_mark, ((p - parser->object_key_mark)) + 1)) {
-          SET_ERRNO(ERRNO_CALLBACK_FAILED);
-          goto error;
-        }
-      }
+      OBJECT_CALLBACK();
       UPDATE_STATE(s_parse_object);
+      break;
+    }
+    case s_done: {
+      if (p != (data + len - 1)) {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
       break;
     }
     default:
@@ -443,10 +466,12 @@ size_t json_parser_execute(json_parser *parser,
     }
   }
 
+  RETURN(len);
+
 error:
-  if (JSON_ERRNO(parser) != ERRNO_OK) {
+  if (JSON_ERRNO(parser) == ERRNO_OK) {
     SET_ERRNO(ERRNO_UNKNOWN);
   }
 
-  return (p - data);
+  RETURN(p - data);
 }

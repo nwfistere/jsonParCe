@@ -22,7 +22,7 @@ static json_parser_callbacks cbs = {.on_object_key_value_pair = NULL,
 /* 8 gb */
 static const int64_t kBytes = 8LL << 30;
 
-static const char data[] = " \
+static const char array_data[] = " \
 [ \
   [], \
   null, \
@@ -41,17 +41,54 @@ static const char data[] = " \
   \"\\uD800\\uDF00\" \
 ] \
 ";
+static const size_t array_data_len = sizeof(array_data) - 1;
 
-static const size_t data_len = sizeof(data) - 1;
+static const char object_data[] = "   \
+{\
+  \"s_parse_objectnullValue\": null,\
+  \"emptyString\": \"\",\
+  \"escapedString\": \"This is a backslash: \\\\\",\
+  \"multilineString\": \"Line 1\nLine 2\nLine 3\",\
+  \"unicodeString\": \"\u2022 Unicode Bullet •\",\
+  \"numberAsString\": \"42\",\
+  \"booleanAsString\": \"true\",\
+  \"arrayWithNullAndEmpty\": [null, \"\", \"value\",[[[[[[\"[]]]]]]]]]\"]]]]],[],[],[],[]]],\
+  \"objectWithSpecialKeys\": {\
+    \"\": \"Empty Key\",\
+    \"special-key\": \"Special Key with Hyphen\",\
+    \"123\": \"Numeric Key\"\
+  },\
+  \"deeplyNestedObject\": {\
+    \"level1\": {\
+      \"level2\":\
+      {\
+        \"level3\": {\
+          \"level4\": {\
+            \"value\": \"Deeply Nested Value\"\
+          }\
+        }\
+      }\
+    }\
+  },\
+  \"longString\": \"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\"\
+  \"integer\": 42, \
+  \"floatingPoint\": 3.14,\
+  \"scientificNotation\": 1.5e10,\
+  \"negativeInteger\": -123,\
+  \"negativeFloatingPoint\": -0.001, \
+  \"\": \"\" \
+}\
+";
+static const size_t object_data_len = sizeof(object_data) - 1;
 
 static const int silent = 0;
 
-int mutli();
-int bench(int iter_count);
+int bench_array_and_object();
+int bench(int iter_count, const char *data, size_t len);
 
-int main() { return multi(); }
+int main() { return bench_array_and_object(); }
 
-int bench(int iter_count) {
+int bench(int iter_count, const char *data, size_t len) {
   json_parser parser;
   int i;
 #ifndef _WIN32
@@ -72,13 +109,13 @@ int bench(int iter_count) {
 #endif
   }
 
-  fprintf(stderr, "req_len=%d\n", (int)data_len);
+  fprintf(stderr, "req_len=%d\n", (int)len);
 
   for (i = 0; i < iter_count; i++) {
     size_t parsed;
     json_parser_init(&parser);
 
-    parsed = json_parser_execute(&parser, &cbs, data, data_len);
+    parsed = json_parser_execute(&parser, &cbs, data, len);
   }
 
   if (!silent) {
@@ -96,7 +133,7 @@ int bench(int iter_count) {
     elapsed = (double)(end - start) / 1000;
 #endif
 
-    total = (double)iter_count * data_len;
+    total = (double)iter_count * len;
     bw = (double)total / elapsed;
 
     fprintf(stdout, "Benchmark result:\n");
@@ -110,7 +147,10 @@ int bench(int iter_count) {
   return 0;
 }
 
-int multi() {
-  int64_t iterations = kBytes / (int64_t)data_len;
-  return bench(iterations);
+int bench_array_and_object() {
+  int64_t iterations = kBytes / (int64_t)array_data_len;
+  bench(iterations, array_data, array_data_len);
+  iterations = kBytes / (int64_t)object_data_len;
+  bench(iterations, object_data, object_data_len);
+  return 0;
 }

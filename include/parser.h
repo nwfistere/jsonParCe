@@ -10,7 +10,6 @@
   XX(OK, "success")                                                            \
   XX(INVALID_STATE, "invalid state")                                           \
   XX(UNKNOWN, "unknown error")                                                 \
-  XX(MALLOC_FAILED, "malloc failed")                                           \
   XX(CALLBACK_FAILED, "callback failed (returned non-zero)")                   \
   XX(INVALID_CHARACTER, "invalid character found")
 
