@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.26)
 
 set(PARSER_COMPILE_SHARED_LIBRARY ON CACHE BOOL "Enables compiling shared library")
 set(PARSER_COMPILE_STATIC_LIBRARY ON CACHE BOOL "Enables compiling static library")
+set(PARSER_ENABLE_TEST ON CACHE BOOL "Enables compiling tests")
 
 project(json_parser C)
 
@@ -18,3 +19,7 @@ endif() # PARSER_COMPILE_SHARED_LIBRARY
 if(PARSER_COMPILE_STATIC_LIBRARY)
   add_library(${PROJECT_NAME}_static STATIC $<TARGET_OBJECTS:${PROJECT_NAME}_obj>)
 endif() # PARSER_COMPILE_STATIC_LIBRARY
+
+if(PARSER_ENABLE_TEST)
+  add_subdirectory(test)
+endif()

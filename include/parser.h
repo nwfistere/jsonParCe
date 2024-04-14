@@ -9,8 +9,9 @@
 #define ERRNO_MAP(XX)                                                          \
   XX(OK, "success")                                                            \
   XX(INVALID_STATE, "invalid state")                                           \
-  XX(UNKNOWN, "unknown error") \
-  XX(MALLOC_FAILED, "malloc failed")
+  XX(UNKNOWN, "unknown error")                                                 \
+  XX(MALLOC_FAILED, "malloc failed")                                           \
+  XX(CALLBACK_FAILED, "callback failed (returned non-zero)")
 
 #define ERRNO_GEN(n, s) ERRNO_##n,
 enum json_errno { ERRNO_MAP(ERRNO_GEN) };
@@ -20,21 +21,29 @@ typedef struct json_parser {
   unsigned int state;
   unsigned int err;
   size_t nread;
-  const char** object_marks;
+  const char **object_marks;
   unsigned int object_marks_len;
   unsigned int object_marks_size;
-  const char** array_marks;
+  const char **array_marks;
   unsigned int array_marks_len;
   unsigned int array_marks_size;
-  const char*** array_item_marks;
+  const char *array_item_mark;
+  unsigned int array_index;
+  unsigned int array_count;
+  unsigned int object_count;
 } json_parser;
 
-typedef int (*json_data_cb)(json_parser *, const char *key, size_t *key_length,
-                            const char *value, size_t value_length);
+typedef int (*json_object_cb)(json_parser *, const char *key,
+                              size_t *key_length, const char *value,
+                              size_t value_length);
+typedef int (*json_array_cb)(json_parser *, unsigned int index,
+                             const char *value, size_t value_length);
 typedef int (*json_cb)(json_parser *);
 
+// return 0 on success, 1 on failure.
 typedef struct json_parser_callbacks {
-  json_data_cb on_key_value_pair;
+  json_object_cb on_object_key_value_pair;
+  json_array_cb on_array_value;
 } json_parser_callbacks;
 
 void json_parser_init(json_parser *parser);
