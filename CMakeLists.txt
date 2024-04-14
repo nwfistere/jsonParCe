@@ -20,6 +20,16 @@ if(PARSER_COMPILE_STATIC_LIBRARY)
   add_library(${PROJECT_NAME}_static STATIC $<TARGET_OBJECTS:${PROJECT_NAME}_obj>)
 endif() # PARSER_COMPILE_STATIC_LIBRARY
 
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    compile_options(${PROJECT_NAME}_obj PUBLIC /W4 /Ox)
+  endif()
+else()
+  if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    compile_options(${PROJECT_NAME}_obj PUBLIC /W4 /Od /Zi /ZI /RTC1 /RTCs /RTCsuc /MP)
+  endif()
+endif()
+
 if(PARSER_ENABLE_TEST)
   add_subdirectory(test)
 endif()
