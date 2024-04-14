@@ -64,15 +64,15 @@ enum state {
   s_parse_array_nu,
   s_parse_array_nul,
   s_parse_array_null,
-  s_parse_array_t,
+  // s_parse_array_t,
   s_parse_array_tr,
   s_parse_array_tru,
-  s_parse_array_true,
-  s_parse_array_f,
+  // s_parse_array_true,
+  // s_parse_array_f,
   s_parse_array_fa,
   s_parse_array_fal,
   s_parse_array_fals,
-  s_parse_array_false,
+  // s_parse_array_false,
   s_parse_array_find_array_end,
   s_parse_array_find_array_end_string_end,
   s_parse_array_find_object_end_string_end,
@@ -167,7 +167,7 @@ size_t json_parser_execute(json_parser *parser,
       if (callbacks->on_array_value) {
         if (callbacks->on_array_value(parser, parser->array_index,
                                       parser->array_item_mark,
-                                      (p - parser->array_item_mark))) {
+                                      (p - parser->array_item_mark) + 1)) {
           SET_ERRNO(ERRNO_CALLBACK_FAILED);
           goto error;
         }
@@ -177,9 +177,9 @@ size_t json_parser_execute(json_parser *parser,
       break;
     }
     case s_parse_array_find_object_end: {
-      if (ch == OB) {
+      if (ch == OCB) {
         parser->object_count++;
-      } else if (ch == CB) {
+      } else if (ch == CCB) {
         parser->object_count--;
       } else if (ch == QM) {
         UPDATE_STATE(s_parse_array_find_object_end_string_end);
@@ -199,6 +199,44 @@ size_t json_parser_execute(json_parser *parser,
       } else if (ch == '\\') {
         p++; // Skip escaped characters.
       }
+      break;
+    }
+    case s_parse_array_string: {
+      // TODO combine with s_parse_array_find_array_end_string_end
+      if (ch == QM) {
+        UPDATE_STATE(s_parse_array_item_end);
+        REEXECUTE();
+      } else if (ch == '\\') {
+        p++; // Skip escaped characters.
+      }
+      break;
+    }
+    case s_parse_array_nu: {
+      UPDATE_STATE(s_parse_array_nul);
+      break;
+    }
+    case s_parse_array_nul: {
+      UPDATE_STATE(s_parse_array_item_end);
+      break;
+    }
+    case s_parse_array_tr: {
+      UPDATE_STATE(s_parse_array_tru);
+      break;
+    }
+    case s_parse_array_tru: {
+      UPDATE_STATE(s_parse_array_item_end);
+      break;
+    }
+    case s_parse_array_fa: {
+      UPDATE_STATE(s_parse_array_fal);
+      break;
+    }
+    case s_parse_array_fal: {
+      UPDATE_STATE(s_parse_array_fals);
+      break;
+    }
+    case s_parse_array_fals: {
+      UPDATE_STATE(s_parse_array_item_end);
       break;
     }
     default:
