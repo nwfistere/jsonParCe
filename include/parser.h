@@ -3,6 +3,16 @@
 
 #include <stddef.h>
 
+typedef enum JSON_TYPE {
+  NONE = 0,
+  OBJECT,
+  ARRAY,
+  NUMBER,
+  STRING,
+  BOOL_TYPE,
+  NULL_TYPE
+} JSON_TYPE;
+
 /*
  * Map for errno-related constants.
  */
@@ -21,12 +31,6 @@ typedef struct json_parser {
   unsigned int state;
   unsigned int err;
   size_t nread;
-  // const char **object_marks;
-  // unsigned int object_marks_len;
-  // unsigned int object_marks_size;
-  // const char **array_marks;
-  // unsigned int array_marks_len;
-  // unsigned int array_marks_size;
   const char *array_item_mark;
   unsigned int array_index;
   unsigned int array_count;
@@ -34,14 +38,21 @@ typedef struct json_parser {
   const char *object_key_mark;
   unsigned int object_key_len;
   const char *object_value_mark;
-  unsigned int object_value_len;
+  void *data;
 } json_parser;
 
 typedef int (*json_object_cb)(json_parser *, const char *key,
                               unsigned int key_length, const char *value,
                               unsigned int value_length);
 typedef int (*json_array_cb)(json_parser *, unsigned int index,
-                             const char *value, size_t value_length);
+                             const char *value, unsigned int value_length);
+typedef int (*json_object_typed_cb)(json_parser *, const char *key,
+                                    unsigned int key_length, JSON_TYPE type,
+                                    const char *value,
+                                    unsigned int value_length);
+typedef int (*json_array_typed_cb)(json_parser *, unsigned int index,
+                                   JSON_TYPE type, const char *value,
+                                   unsigned int value_length);
 typedef int (*json_cb)(json_parser *);
 
 // return 0 on success, 1 on failure.
@@ -50,11 +61,20 @@ typedef struct json_parser_callbacks {
   json_array_cb on_array_value;
 } json_parser_callbacks;
 
+typedef struct json_parser_callbacks_typed {
+  json_object_typed_cb on_object_key_value_pair;
+  json_array_typed_cb on_array_value;
+} json_parser_callbacks_typed;
+
 void json_parser_init(json_parser *parser);
 void json_parser_callbacks_init(json_parser_callbacks *parser);
 
 size_t json_parser_execute(json_parser *parser,
                            json_parser_callbacks *callbacks, const char *data,
                            size_t len);
+
+size_t json_parser_typed_execute(json_parser *parser,
+                                 json_parser_callbacks_typed *callbacks,
+                                 const char *data, size_t len);
 
 #endif // PARSER_H

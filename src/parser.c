@@ -16,42 +16,11 @@
   } while (0)
 
 #define JSON_ERRNO(parser) ((enum json_errno)(parser->err))
-
-// #define MARK_OBJECT_START(P) \
-//   if (parser->object_marks_len == parser->object_marks_size) { \
-//     const char** t_object_marks = realloc(parser->object_marks, 2 * parser->object_marks_size * sizeof(char*)); \
-//     if (t_object_marks == NULL) { \
-//       SET_ERRNO(ERRNO_MALLOC_FAILED); \
-//       goto error; \
-//     } \
-//     memset(parser->object_marks + parser->object_marks_size, 0, parser->object_marks_size * sizeof(char*)); \
-//     parser->object_marks = t_object_marks; \
-//     parser->object_marks_size *= 2; \
-//   } \
-//   parser->object_marks[parser->object_marks_len] = P; \
-//   parser->object_marks_len++;
-
-// #define MARK_ARRAY_START(P) \
-//   if (parser->array_marks_len == parser->array_marks_size) { \
-//     const char** t_array_marks = realloc(parser->array_marks, 2 * parser->array_marks_size * sizeof(char*)); \
-//     if (t_array_marks == NULL) { \
-//       SET_ERRNO(ERRNO_MALLOC_FAILED); \
-//       goto error; \
-//     } \
-//     memset(parser->array_marks + parser->array_marks_size, 0, parser->array_marks_size * sizeof(char*)); \
-//     parser->array_marks = t_array_marks; \
-//     parser->array_marks_size *= 2; \
-//   } \
-//   parser->array_marks[parser->array_marks_len] = P; \
-//   parser->array_marks_len++;
-
 #define MARK_ARRAY_ITEM_START(P) parser->array_item_mark = (P)
 #define MARK_OBJECT_KEY_START(P) parser->object_key_mark = (P)
 #define MARK_OBJECT_KEY_LENGTH(P)                                              \
   parser->object_key_len = ((P)-parser->object_key_mark)
 #define MARK_OBJECT_VALUE_START(P) parser->object_value_mark = (P)
-// #define MARK_OBJECT_VALUE_LENGTH(P) parser->object_value_len = ((P) -
-// parser->object_value_mark)
 
 #define _OBJECT_CALLBACK(VALUE_LENGTH)                                         \
   if (callbacks->on_object_key_value_pair) {                                   \
@@ -65,6 +34,20 @@
 #define OBJECT_CALLBACK() _OBJECT_CALLBACK((p - parser->object_value_mark) + 1)
 #define OBJECT_CALLBACK_NOADVANCE()                                            \
   _OBJECT_CALLBACK((p - parser->object_value_mark))
+
+#define _ARRAY_CALLBACK(VALUE_LENGTH)                                          \
+  if (callbacks->on_array_value) {                                             \
+    if (callbacks->on_array_value(parser, parser->array_index,                 \
+                                  parser->array_item_mark, (VALUE_LENGTH))) {  \
+      SET_ERRNO(ERRNO_CALLBACK_FAILED);                                        \
+      goto error;                                                              \
+    }                                                                          \
+  }                                                                            \
+  parser->array_index++;
+
+#define ARRAY_CALLBACK() _ARRAY_CALLBACK((p - parser->array_item_mark) + 1)
+#define ARRAY_CALLBACK_NOADVANCE()                                             \
+  _ARRAY_CALLBACK((p - parser->array_item_mark))
 
 #define OB '['
 #define CB ']'
@@ -82,6 +65,64 @@
       (c) == 'e' || (c) == 'E'
 #define UPDATE_STATE(V) p_state = (enum state)(V);
 #define REEXECUTE() goto reexecute
+
+#define GET_TYPE(C, T)                                                         \
+  switch (C) {                                                                 \
+  case QM: {                                                                   \
+    (T) = STRING;                                                              \
+    break;                                                                     \
+  }                                                                            \
+  case OB: {                                                                   \
+    (T) = ARRAY;                                                               \
+    break;                                                                     \
+  }                                                                            \
+  case OCB: {                                                                  \
+    (T) = OBJECT;                                                              \
+    break;                                                                     \
+  }                                                                            \
+  case 'n': {                                                                  \
+    (T) = NULL_TYPE;                                                           \
+    break;                                                                     \
+  }                                                                            \
+  case 't':                                                                    \
+  case 'f': {                                                                  \
+    (T) = BOOL_TYPE;                                                           \
+    break;                                                                     \
+  }                                                                            \
+  case '0':                                                                    \
+  case '1':                                                                    \
+  case '2':                                                                    \
+  case '3':                                                                    \
+  case '4':                                                                    \
+  case '5':                                                                    \
+  case '6':                                                                    \
+  case '7':                                                                    \
+  case '8':                                                                    \
+  case '9':                                                                    \
+  case '-': {                                                                  \
+    (T) = NUMBER;                                                              \
+    break;                                                                     \
+  }                                                                            \
+  default: {                                                                   \
+    (T) = NONE;                                                                \
+    break;                                                                     \
+  }                                                                            \
+  }
+
+#define UPDATE_PARSER(LP, RP)                                                  \
+  do {                                                                         \
+    /* Copy over everything but data. */                                       \
+    (LP)->state = (RP)->state;                                                 \
+    (LP)->err = (RP)->err;                                                     \
+    (LP)->nread = (RP)->nread;                                                 \
+    (LP)->array_item_mark = (RP)->array_item_mark;                             \
+    (LP)->array_index = (RP)->array_index;                                     \
+    (LP)->array_count = (RP)->array_count;                                     \
+    (LP)->object_count = (RP)->object_count;                                   \
+    (LP)->object_key_mark = (RP)->object_key_mark;                             \
+    (LP)->object_key_len = (RP)->object_key_len;                               \
+    (LP)->object_value_mark = (RP)->object_value_mark;                         \
+  } while (0)
 
 enum state {
   s_dead = 1,
@@ -210,15 +251,7 @@ size_t json_parser_execute(json_parser *parser,
       break;
     }
     case s_parse_array_item_end: {
-      if (callbacks->on_array_value) {
-        if (callbacks->on_array_value(parser, parser->array_index,
-                                      parser->array_item_mark,
-                                      (p - parser->array_item_mark) + 1)) {
-          SET_ERRNO(ERRNO_CALLBACK_FAILED);
-          goto error;
-        }
-      }
-      parser->array_index++;
+      ARRAY_CALLBACK();
       UPDATE_STATE(s_parse_array);
       break;
     }
@@ -286,10 +319,11 @@ size_t json_parser_execute(json_parser *parser,
       break;
     }
     case s_parse_array_numeric: {
-      if (ch == COMMA) {
-        UPDATE_STATE(s_parse_array_item_end);
-        REEXECUTE();
+      if (ch == COMMA || ch == CB || IS_WHITESPACE(ch)) {
+        ARRAY_CALLBACK_NOADVANCE();
+        UPDATE_STATE(s_parse_array);
       }
+      break;
     }
     case s_parse_object: {
       if (IS_WHITESPACE(ch) || ch == COMMA) {
@@ -364,7 +398,7 @@ size_t json_parser_execute(json_parser *parser,
       break;
     }
     case s_parse_object_value_numeric: {
-      if (ch == COMMA) {
+      if (ch == COMMA || ch == CCB || IS_WHITESPACE(ch)) {
         OBJECT_CALLBACK_NOADVANCE();
         UPDATE_STATE(s_parse_object);
       }
@@ -475,3 +509,68 @@ error:
 
   RETURN(p - data);
 }
+
+typedef struct json_parser_typed {
+  json_parser *parser;
+  json_parser_callbacks_typed *callbacks;
+} json_parser_typed;
+
+int json_parser_typed_execute_json_object_cb(json_parser *parser,
+                                             const char *key,
+                                             unsigned int key_length,
+                                             const char *value,
+                                             unsigned int value_length) {
+  json_parser_typed *_data = parser->data;
+  if (_data->callbacks->on_object_key_value_pair) {
+    const char ch = *value;
+    enum JSON_TYPE type;
+    GET_TYPE(ch, type);
+    if (type == STRING) {
+      // Remove '"' from each side.
+      value++;
+      value_length -= 2;
+    }
+    UPDATE_PARSER(_data->parser, parser);
+    return _data->callbacks->on_object_key_value_pair(
+        _data->parser, key, key_length, type, value, value_length);
+  }
+  return 0;
+}
+
+int json_parser_typed_execute_json_array_cb(json_parser *parser,
+                                            unsigned int index,
+                                            const char *value,
+                                            unsigned int value_length) {
+  json_parser_typed *_data = parser->data;
+  if (_data->callbacks->on_array_value) {
+    const char ch = *value;
+    enum JSON_TYPE type;
+    GET_TYPE(ch, type);
+    if (type == STRING) {
+      // Remove '"' from each side.
+      value++;
+      value_length -= 2;
+    }
+    UPDATE_PARSER(_data->parser, parser);
+    return _data->callbacks->on_array_value(_data->parser, index, type, value,
+                                            value_length);
+  }
+  return 0;
+}
+
+size_t json_parser_typed_execute(json_parser *parser,
+                                 json_parser_callbacks_typed *callbacks,
+                                 const char *data, size_t len) {
+  json_parser_callbacks cbs = {
+      .on_object_key_value_pair = json_parser_typed_execute_json_object_cb,
+      .on_array_value = json_parser_typed_execute_json_array_cb};
+
+  json_parser_typed _data = {.parser = parser, .callbacks = callbacks};
+
+  json_parser _parser = *parser;
+  _parser.data = &_data;
+
+  size_t retval = json_parser_execute(&_parser, &cbs, data, len);
+  UPDATE_PARSER(parser, &_parser);
+  return retval;
+};
