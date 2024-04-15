@@ -96,8 +96,8 @@ int bench(int iter_count, const char *data, size_t len) {
   struct timeval start;
   struct timeval end;
 #else
-  ULONGLONG start;
-  ULONGLONG end;
+  ULONGLONG start = 0;
+  ULONGLONG end = 0;
 #endif
 
   if (!silent) {

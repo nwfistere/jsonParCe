@@ -173,8 +173,6 @@ size_t json_parser_execute(json_parser *parser,
                            json_parser_callbacks *callbacks, const char *data,
                            size_t len) {
   const char *p = data;
-  const char *key = 0;
-  const char *value = 0;
   enum state p_state = (enum state)parser->state;
   size_t nread = parser->nread;
   char ch;
