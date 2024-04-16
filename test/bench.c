@@ -12,7 +12,7 @@
 #endif
 
 static int on_array(json_parser *parser, unsigned int index, const char *value,
-                    unsigned int value_length) {
+                    size_t value_length) {
   return 0;
 }
 

@@ -1,6 +1,4 @@
 #include "parser.h"
-
-#include <stdlib.h>
 #include <string.h>
 
 #define SET_ERRNO(e)                                                           \
@@ -10,8 +8,8 @@
   } while (0)
 #define RETURN(V)                                                              \
   do {                                                                         \
-    parser->nread = nread;                                                     \
-    parser->state = p_state;                                                   \
+    parser->nread = (size_t)nread;                                             \
+    parser->state = (unsigned int)p_state;                                     \
     return (V);                                                                \
   } while (0)
 
@@ -19,35 +17,36 @@
 #define MARK_ARRAY_ITEM_START(P) parser->array_item_mark = (P)
 #define MARK_OBJECT_KEY_START(P) parser->object_key_mark = (P)
 #define MARK_OBJECT_KEY_LENGTH(P)                                              \
-  parser->object_key_len = ((P)-parser->object_key_mark)
+  parser->object_key_len = (size_t)((P)-parser->object_key_mark)
 #define MARK_OBJECT_VALUE_START(P) parser->object_value_mark = (P)
 
-#define _OBJECT_CALLBACK(VALUE_LENGTH)                                         \
+#define P_OBJECT_CALLBACK(VALUE_LENGTH)                                        \
   if (callbacks->on_object_key_value_pair) {                                   \
     if (callbacks->on_object_key_value_pair(                                   \
             parser, parser->object_key_mark, parser->object_key_len,           \
-            parser->object_value_mark, (VALUE_LENGTH))) {                      \
+            parser->object_value_mark, (size_t)(VALUE_LENGTH))) {              \
       SET_ERRNO(ERRNO_CALLBACK_FAILED);                                        \
       goto error;                                                              \
     }                                                                          \
   }
-#define OBJECT_CALLBACK() _OBJECT_CALLBACK((p - parser->object_value_mark) + 1)
+#define OBJECT_CALLBACK() P_OBJECT_CALLBACK((p - parser->object_value_mark) + 1)
 #define OBJECT_CALLBACK_NOADVANCE()                                            \
-  _OBJECT_CALLBACK((p - parser->object_value_mark))
+  P_OBJECT_CALLBACK((p - parser->object_value_mark))
 
-#define _ARRAY_CALLBACK(VALUE_LENGTH)                                          \
+#define P_ARRAY_CALLBACK(VALUE_LENGTH)                                         \
   if (callbacks->on_array_value) {                                             \
     if (callbacks->on_array_value(parser, parser->array_index,                 \
-                                  parser->array_item_mark, (VALUE_LENGTH))) {  \
+                                  parser->array_item_mark,                     \
+                                  (size_t)(VALUE_LENGTH))) {                   \
       SET_ERRNO(ERRNO_CALLBACK_FAILED);                                        \
       goto error;                                                              \
     }                                                                          \
   }                                                                            \
-  parser->array_index++;
+  parser->array_index++
 
-#define ARRAY_CALLBACK() _ARRAY_CALLBACK((p - parser->array_item_mark) + 1)
+#define ARRAY_CALLBACK() P_ARRAY_CALLBACK((p - parser->array_item_mark) + 1)
 #define ARRAY_CALLBACK_NOADVANCE()                                             \
-  _ARRAY_CALLBACK((p - parser->array_item_mark))
+  P_ARRAY_CALLBACK((p - parser->array_item_mark))
 
 #define OB '['
 #define CB ']'
@@ -63,7 +62,7 @@
 #define IS_NUMERIC(c)                                                          \
   ((c) >= '0' && (c) <= '9') || (c) == '-' || (c) == '.' || (c) == '+' ||      \
       (c) == 'e' || (c) == 'E'
-#define UPDATE_STATE(V) p_state = (enum state)(V);
+#define UPDATE_STATE(V) p_state = (enum state)(V)
 #define REEXECUTE() goto reexecute
 
 #define GET_TYPE(C, T)                                                         \
@@ -164,6 +163,11 @@ enum state {
   s_done
 };
 
+typedef struct json_parser_typed {
+  json_parser *parser;
+  json_parser_callbacks_typed *callbacks;
+} json_parser_typed;
+
 void json_parser_init(json_parser *parser) {
   memset(parser, 0, sizeof(*parser));
   parser->state = s_start;
@@ -220,7 +224,7 @@ size_t json_parser_execute(json_parser *parser,
       } else if (ch == 'n') {
         UPDATE_STATE(s_parse_array_nu);
       } else if (IS_NUMERIC(ch)) {
-        UPDATE_STATE(s_parse_array_numeric)
+        UPDATE_STATE(s_parse_array_numeric);
       }
       break;
     }
@@ -381,7 +385,7 @@ size_t json_parser_execute(json_parser *parser,
       } else if (ch == 'n') {
         UPDATE_STATE(s_parse_object_value_nu);
       } else if (IS_NUMERIC(ch)) {
-        UPDATE_STATE(s_parse_object_value_numeric)
+        UPDATE_STATE(s_parse_object_value_numeric);
       }
       break;
     }
@@ -397,7 +401,7 @@ size_t json_parser_execute(json_parser *parser,
     }
     case s_parse_object_value_numeric: {
       if (ch == COMMA || ch == CCB || IS_WHITESPACE(ch)) {
-        OBJECT_CALLBACK_NOADVANCE();
+        OBJECT_CALLBACK_NOADVANCE()
         UPDATE_STATE(s_parse_object);
       }
       break;
@@ -481,7 +485,7 @@ size_t json_parser_execute(json_parser *parser,
       break;
     }
     case s_parse_object_value_end: {
-      OBJECT_CALLBACK();
+      OBJECT_CALLBACK()
       UPDATE_STATE(s_parse_object);
       break;
     }
@@ -492,9 +496,6 @@ size_t json_parser_execute(json_parser *parser,
       }
       break;
     }
-    default:
-      SET_ERRNO(ERRNO_UNKNOWN);
-      goto error;
     }
   }
 
@@ -508,21 +509,16 @@ error:
   RETURN(p - data);
 }
 
-typedef struct json_parser_typed {
-  json_parser *parser;
-  json_parser_callbacks_typed *callbacks;
-} json_parser_typed;
-
-int json_parser_typed_execute_json_object_cb(json_parser *parser,
-                                             const char *key,
-                                             unsigned int key_length,
-                                             const char *value,
-                                             unsigned int value_length) {
+static int json_parser_typed_execute_json_object_cb(json_parser *parser,
+                                                    const char *key,
+                                                    size_t key_length,
+                                                    const char *value,
+                                                    size_t value_length) {
   json_parser_typed *_data = parser->data;
   if (_data->callbacks->on_object_key_value_pair) {
     const char ch = *value;
     enum JSON_TYPE type;
-    GET_TYPE(ch, type);
+    GET_TYPE(ch, type)
     if (type == STRING) {
       // Remove '"' from each side.
       value++;
@@ -535,15 +531,15 @@ int json_parser_typed_execute_json_object_cb(json_parser *parser,
   return 0;
 }
 
-int json_parser_typed_execute_json_array_cb(json_parser *parser,
-                                            unsigned int index,
-                                            const char *value,
-                                            unsigned int value_length) {
+static int json_parser_typed_execute_json_array_cb(json_parser *parser,
+                                                   unsigned int index,
+                                                   const char *value,
+                                                   size_t value_length) {
   json_parser_typed *_data = parser->data;
   if (_data->callbacks->on_array_value) {
     const char ch = *value;
     enum JSON_TYPE type;
-    GET_TYPE(ch, type);
+    GET_TYPE(ch, type)
     if (type == STRING) {
       // Remove '"' from each side.
       value++;
@@ -559,6 +555,7 @@ int json_parser_typed_execute_json_array_cb(json_parser *parser,
 size_t json_parser_typed_execute(json_parser *parser,
                                  json_parser_callbacks_typed *callbacks,
                                  const char *data, size_t len) {
+  size_t retval;
   json_parser_callbacks cbs = {
       .on_object_key_value_pair = json_parser_typed_execute_json_object_cb,
       .on_array_value = json_parser_typed_execute_json_array_cb};
@@ -568,7 +565,7 @@ size_t json_parser_typed_execute(json_parser *parser,
   json_parser _parser = *parser;
   _parser.data = &_data;
 
-  size_t retval = json_parser_execute(&_parser, &cbs, data, len);
+  retval = json_parser_execute(&_parser, &cbs, data, len);
   UPDATE_PARSER(parser, &_parser);
   return retval;
-};
+}

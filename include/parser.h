@@ -1,5 +1,8 @@
 #ifndef PARSER_H
 #define PARSER_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stddef.h>
 
@@ -12,6 +15,16 @@ typedef enum JSON_TYPE {
   BOOL_TYPE,
   NULL_TYPE
 } JSON_TYPE;
+
+#ifdef _WIN32
+#ifdef LIBRARY_EXPORTS
+#define LIBRARY_API __declspec(dllexport)
+#else
+#define LIBRARY_API __declspec(dllimport)
+#endif
+#elif
+#define LIBRARY_API
+#endif
 
 /*
  * Map for errno-related constants.
@@ -36,23 +49,21 @@ typedef struct json_parser {
   unsigned int array_count;
   unsigned int object_count;
   const char *object_key_mark;
-  unsigned int object_key_len;
+  size_t object_key_len;
   const char *object_value_mark;
   void *data;
 } json_parser;
 
-typedef int (*json_object_cb)(json_parser *, const char *key,
-                              unsigned int key_length, const char *value,
-                              unsigned int value_length);
+typedef int (*json_object_cb)(json_parser *, const char *key, size_t key_length,
+                              const char *value, size_t value_length);
 typedef int (*json_array_cb)(json_parser *, unsigned int index,
-                             const char *value, unsigned int value_length);
+                             const char *value, size_t value_length);
 typedef int (*json_object_typed_cb)(json_parser *, const char *key,
-                                    unsigned int key_length, JSON_TYPE type,
-                                    const char *value,
-                                    unsigned int value_length);
+                                    size_t key_length, JSON_TYPE type,
+                                    const char *value, size_t value_length);
 typedef int (*json_array_typed_cb)(json_parser *, unsigned int index,
                                    JSON_TYPE type, const char *value,
-                                   unsigned int value_length);
+                                   size_t value_length);
 typedef int (*json_cb)(json_parser *);
 
 // return 0 on success, 1 on failure.
@@ -66,15 +77,18 @@ typedef struct json_parser_callbacks_typed {
   json_array_typed_cb on_array_value;
 } json_parser_callbacks_typed;
 
-void json_parser_init(json_parser *parser);
-void json_parser_callbacks_init(json_parser_callbacks *parser);
+LIBRARY_API void json_parser_init(json_parser *parser);
+LIBRARY_API void json_parser_callbacks_init(json_parser_callbacks *parser);
 
-size_t json_parser_execute(json_parser *parser,
-                           json_parser_callbacks *callbacks, const char *data,
-                           size_t len);
+LIBRARY_API size_t json_parser_execute(json_parser *parser,
+                                       json_parser_callbacks *callbacks,
+                                       const char *data, size_t len);
 
-size_t json_parser_typed_execute(json_parser *parser,
-                                 json_parser_callbacks_typed *callbacks,
-                                 const char *data, size_t len);
+LIBRARY_API size_t json_parser_typed_execute(
+    json_parser *parser, json_parser_callbacks_typed *callbacks,
+    const char *data, size_t len);
 
+#ifdef __cplusplus
+}
+#endif
 #endif // PARSER_H

@@ -12,24 +12,25 @@ static const char object_data[] =
 static const size_t object_data_len = sizeof(object_data) - 1;
 
 int on_array_value_cb(json_parser *parser, unsigned int index,
-                      const char *value, unsigned int value_length) {
+                      const char *value, size_t value_length) {
   return 0;
 }
 
 int on_object_key_value_pair_cb(json_parser *parser, const char *key,
-                                unsigned int key_length, const char *value,
-                                unsigned int value_length) {
+                                size_t key_length, const char *value,
+                                size_t value_length) {
   return 0;
 }
 
 int on_typed_object_value_cb(json_parser *parser, const char *key,
-                             unsigned int key_length, JSON_TYPE type,
-                             const char *value, unsigned int value_length) {
+                             size_t key_length, JSON_TYPE type,
+                             const char *value, size_t value_length) {
   return 0;
 }
 
-int on_typed_array_value_cb(json_parser *, unsigned int index, JSON_TYPE type,
-                            const char *value, unsigned int value_length) {
+int on_typed_array_value_cb(json_parser *parser, unsigned int index,
+                            JSON_TYPE type, const char *value,
+                            size_t value_length) {
   return 0;
 }
 
