@@ -3,3 +3,4 @@ scripts/
 compile_commands.json
 .cache/
 .vscode/
+*.gcov

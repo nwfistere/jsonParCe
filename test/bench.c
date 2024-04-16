@@ -4,6 +4,7 @@
 #include <string.h>
 
 #ifndef _WIN32
+#include <assert.h>
 #include <sys/time.h>
 #else
 #define WIN32_LEAN_AND_MEAN
@@ -11,8 +12,7 @@
 #endif
 
 static int on_array(json_parser *parser, unsigned int index, const char *value,
-                    size_t value_length) {
-  // printf("index: %d - value: %.*s\n", index, value_length, value);
+                    unsigned int value_length) {
   return 0;
 }
 

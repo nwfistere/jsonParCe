@@ -1,7 +1,11 @@
 set(TEST_PARSER_COMPILE_OPTIONS ${PARSER_COMPILE_OPTIONS})
-# Disable warnings on test code
+
+
 list(FILTER TEST_PARSER_COMPILE_OPTIONS EXCLUDE REGEX [/-][Ww].*)
-list(APPEND TEST_PARSER_COMPILE_OPTIONS /W0)
+if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
+  # Disable warnings on test code
+  list(APPEND TEST_PARSER_COMPILE_OPTIONS /W0)
+endif()
 
 add_executable(${PROJECT_NAME}_bench bench.c)
 target_include_directories(${PROJECT_NAME}_bench PRIVATE ../include)
