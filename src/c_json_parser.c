@@ -1,4 +1,6 @@
-#include "parser.h"
+#include "c_json_parser.h"
+#include "encoding.h"
+#include <stdint.h>
 #include <string.h>
 
 #define SET_ERRNO(e)                                                           \
@@ -168,18 +170,25 @@ typedef struct json_parser_typed {
   json_parser_callbacks_typed *callbacks;
 } json_parser_typed;
 
-void json_parser_init(json_parser *parser) {
+LIBRARY_API void json_parser_init(json_parser *parser) {
   memset(parser, 0, sizeof(*parser));
   parser->state = s_start;
 }
 
-size_t json_parser_execute(json_parser *parser,
-                           json_parser_callbacks *callbacks, const char *data,
-                           size_t len) {
+LIBRARY_API size_t json_parser_execute(json_parser *parser,
+                                       json_parser_callbacks *callbacks,
+                                       const char *data, size_t len) {
   const char *p = data;
   enum state p_state = (enum state)parser->state;
   size_t nread = parser->nread;
   char ch;
+
+  if (parser->encoding == UNKNOWN && len >= 4) {
+    // assume it's the start of the json object and attempt to get encoding.
+    // TODO: Will want to verify we're not in the middle of an object with an
+    // unknown encoding.
+    parser->encoding = check_json_byte_encoding((uint8_t *)data);
+  }
 
   for (p = data; p != data + len; p++) {
     ch = *p;
@@ -552,9 +561,9 @@ static int json_parser_typed_execute_json_array_cb(json_parser *parser,
   return 0;
 }
 
-size_t json_parser_typed_execute(json_parser *parser,
-                                 json_parser_callbacks_typed *callbacks,
-                                 const char *data, size_t len) {
+LIBRARY_API size_t json_parser_typed_execute(
+    json_parser *parser, json_parser_callbacks_typed *callbacks,
+    const char *data, size_t len) {
   size_t retval;
   json_parser_callbacks cbs = {
       .on_object_key_value_pair = json_parser_typed_execute_json_object_cb,

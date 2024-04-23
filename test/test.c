@@ -1,4 +1,4 @@
-#include "parser.h"
+#include "c_json_parser.h"
 #include <assert.h>
 
 static const char array_data[] =

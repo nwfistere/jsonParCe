@@ -7,11 +7,13 @@ set(PARSER_ENABLE_TEST_COVERAGE ON CACHE BOOL "Enables test coverage")
 
 project(json_parser C)
 
-set(SRCS ./src/parser.c)
+set(SRCS ./src/c_json_parser.c)
 
 
 if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
-  set(PARSER_COMPILE_OPTIONS /nologo /Wall /WX)
+  # MSVC Warning 4820 warns about padded bytes in struct.
+  # MSVC Warning 5045 warns about spectre protection
+  set(PARSER_COMPILE_OPTIONS /nologo /Wall /WX /wd4820 /wd5045)
   if(CMAKE_BUILD_TYPE STREQUAL "Release")
     list(APPEND PARSER_COMPILE_OPTIONS /Ox)
   else()
@@ -41,13 +43,20 @@ endif()
 if(PARSER_COMPILE_SHARED_LIBRARY)
   add_library(${PROJECT_NAME}_shared SHARED $<TARGET_OBJECTS:${PROJECT_NAME}_obj>)
   target_compile_options(${PROJECT_NAME}_shared PRIVATE ${PARSER_COMPILE_OPTIONS})
+  # Export functions
+  target_compile_definitions(${PROJECT_NAME}_shared PRIVATE LIBRARY_EXPORTS)
+  target_compile_definitions(${PROJECT_NAME}_obj PRIVATE LIBRARY_EXPORTS)
+  install(TARGETS ${PROJECT_NAME}_shared)
 endif() # PARSER_COMPILE_SHARED_LIBRARY
 
 if(PARSER_COMPILE_STATIC_LIBRARY)
   add_library(${PROJECT_NAME}_static STATIC $<TARGET_OBJECTS:${PROJECT_NAME}_obj>)
   target_compile_options(${PROJECT_NAME}_static PRIVATE ${PARSER_COMPILE_OPTIONS})
+  set_target_properties(${PROJECT_NAME}_static PROPERTIES PUBLIC_HEADER "include/c_json_parser.h")
+  install(TARGETS ${PROJECT_NAME}_static PUBLIC_HEADER DESTINATION include)
 endif() # PARSER_COMPILE_STATIC_LIBRARY
 
 if(PARSER_ENABLE_TEST)
+  enable_testing()
   add_subdirectory(test)
 endif()

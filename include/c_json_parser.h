@@ -20,9 +20,13 @@ typedef enum JSON_TYPE {
 #ifdef LIBRARY_EXPORTS
 #define LIBRARY_API __declspec(dllexport)
 #else
+#ifdef LIBRARY_IMPORTS
 #define LIBRARY_API __declspec(dllimport)
+#else
+#define LIBRARY_API
 #endif
-#elif
+#endif
+#else
 #define LIBRARY_API
 #endif
 
@@ -41,15 +45,17 @@ enum json_errno { ERRNO_MAP(ERRNO_GEN) };
 #undef ERRNO_GEN
 
 typedef struct json_parser {
+  size_t nread;
+  size_t object_key_len;
   unsigned int state;
   unsigned int err;
-  size_t nread;
-  const char *array_item_mark;
   unsigned int array_index;
   unsigned int array_count;
   unsigned int object_count;
+  unsigned int encoding;
+
+  const char *array_item_mark;
   const char *object_key_mark;
-  size_t object_key_len;
   const char *object_value_mark;
   void *data;
 } json_parser;
