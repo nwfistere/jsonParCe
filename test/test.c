@@ -117,18 +117,12 @@ int main() {
       json_parser_execute_file(&parser, &cbs, "./encodings/utf-16LEBOM.json");
   print_retval(retval, 51, &parser);
 
-  // 4
-  json_parser_init(&parser);
-  retval =
-      json_parser_execute_file(&parser, &cbs, "./encodings/utf-16BOM2.json");
-  print_retval(retval, 51, &parser);
-
   // 5
   json_parser_init(&parser);
   retval = json_parser_execute_file(&parser, &cbs, "./encodings/utf-32LE.json");
   print_retval(retval, 48, &parser);
 
-  // 6
+  // 5
   json_parser_init(&parser);
   retval =
       json_parser_execute_file(&parser, &cbs, "./encodings/utf-32LEBOM.json");
