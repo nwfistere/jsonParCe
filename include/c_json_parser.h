@@ -38,11 +38,24 @@ typedef enum JSON_TYPE {
   XX(INVALID_STATE, "invalid state")                                           \
   XX(UNKNOWN, "unknown error")                                                 \
   XX(CALLBACK_FAILED, "callback failed (returned non-zero)")                   \
-  XX(INVALID_CHARACTER, "invalid character found")
+  XX(INVALID_CHARACTER, "invalid character found")                             \
+  XX(FILE_OPEN_FAILURE, "failed to open file")                                 \
+  XX(INVALID_ENCODING, "invalid encoding")
 
 #define ERRNO_GEN(n, s) ERRNO_##n,
 enum json_errno { ERRNO_MAP(ERRNO_GEN) };
 #undef ERRNO_GEN
+
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#endif
+#define ERRNO_MSG_GEN(n, s) s,
+static const char *json_errno_messages[] = {ERRNO_MAP(ERRNO_MSG_GEN)};
+#undef ERRNO_MSG_GEN
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 typedef struct json_parser {
   size_t nread;
@@ -58,6 +71,11 @@ typedef struct json_parser {
   const char *object_key_mark;
   const char *object_value_mark;
   void *data;
+
+  // debug help
+  const char *file;
+  int line;
+  const char *func;
 } json_parser;
 
 typedef int (*json_object_cb)(json_parser *, const char *key, size_t key_length,
@@ -90,9 +108,17 @@ LIBRARY_API size_t json_parser_execute(json_parser *parser,
                                        json_parser_callbacks *callbacks,
                                        const char *data, size_t len);
 
+LIBRARY_API size_t json_parser_execute_file(json_parser *parser,
+                                            json_parser_callbacks *callbacks,
+                                            const char *file);
+
 LIBRARY_API size_t json_parser_typed_execute(
     json_parser *parser, json_parser_callbacks_typed *callbacks,
     const char *data, size_t len);
+
+LIBRARY_API size_t json_parser_typed_execute_file(
+    json_parser *parser, json_parser_callbacks_typed *callbacks,
+    const char *file);
 
 #ifdef __cplusplus
 }

@@ -6,14 +6,16 @@ set(PARSER_ENABLE_TEST ON CACHE BOOL "Enables compiling tests")
 set(PARSER_ENABLE_TEST_COVERAGE ON CACHE BOOL "Enables test coverage")
 
 project(json_parser C)
+set(C_STANDARD 11)
 
-set(SRCS ./src/c_json_parser.c)
+set(SRCS ./src/c_json_parser.c ./src/encoding.c)
 
 
 if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
   # MSVC Warning 4820 warns about padded bytes in struct.
   # MSVC Warning 5045 warns about spectre protection
-  set(PARSER_COMPILE_OPTIONS /nologo /Wall /WX /wd4820 /wd5045)
+  # MSVC Warning 4996 warns about using strdup
+  set(PARSER_COMPILE_OPTIONS /nologo /Wall /WX /wd4820 /wd5045 /wd4996)
   if(CMAKE_BUILD_TYPE STREQUAL "Release")
     list(APPEND PARSER_COMPILE_OPTIONS /Ox)
   else()

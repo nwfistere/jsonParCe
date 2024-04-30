@@ -1,12 +1,29 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "c_json_parser.h"
 #include "encoding.h"
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
+
+// TODO: if not __func__ just set it to unknown or something.
+#ifdef __func__
+#define SET_ERR(e)                                                             \
+  parser->err = (e);                                                           \
+  parser->line = __LINE__;                                                     \
+  parser->file = __FILE__;                                                     \
+  parser->func = __func__;
+#else
+#define SET_ERR(e)                                                             \
+  parser->err = (e);                                                           \
+  parser->line = __LINE__;                                                     \
+  parser->file = __FILE__;
+#endif // #ifdef __func__
 
 #define SET_ERRNO(e)                                                           \
   do {                                                                         \
     parser->nread = nread;                                                     \
-    parser->err = (e);                                                         \
+    SET_ERR(e);                                                                \
   } while (0)
 #define RETURN(V)                                                              \
   do {                                                                         \
@@ -516,6 +533,97 @@ error:
   }
 
   RETURN(p - data);
+}
+
+LIBRARY_API size_t json_parser_execute_file(json_parser *parser,
+                                            json_parser_callbacks *callbacks,
+                                            const char *file) {
+
+  int encoding = get_file_encoding(file);
+  if (encoding < 0) {
+    SET_ERR(ERRNO_FILE_OPEN_FAILURE);
+    return 0;
+  } else if (encoding == 0) {
+    SET_ERR(ERRNO_INVALID_ENCODING);
+    return 0;
+  }
+
+  FILE *fp = fopen(file, "r");
+  if (!fp) {
+    SET_ERR(ERRNO_FILE_OPEN_FAILURE);
+    return 0;
+  }
+
+  fseek(fp, 0, SEEK_END);
+  size_t file_size = ftell(fp);
+  fseek(fp, 0, SEEK_SET);
+
+  char *content = NULL;
+  size_t content_len = 0;
+  if (IS_UTF16(encoding)) {
+    char16_t *chars = (char16_t *)malloc((file_size + 1) * sizeof(char16_t));
+    char16_t *p = &chars[0];
+    size_t nread = 0;
+
+    while ((nread = fread(p, sizeof(char16_t), &chars[file_size] - p, fp)) >
+           0) {
+      p += nread;
+    }
+    *p = u'\0';
+
+    if (c16strtomb(chars, (strlen16(chars)) * sizeof(char16_t), &content,
+                   &content_len) < 0) {
+      SET_ERR(ERRNO_INVALID_ENCODING);
+      fclose(fp);
+      free(chars);
+      return 0;
+    }
+
+    free(chars);
+  } else if (IS_UTF32(encoding)) {
+    char32_t *chars = (char32_t *)malloc((file_size + 1) * sizeof(char32_t));
+    char32_t *p = &chars[0];
+    size_t nread = 0;
+
+    while ((nread = fread(p, sizeof(char32_t), &chars[file_size] - p, fp)) >
+           0) {
+      p += nread;
+    }
+    *p = U'\0';
+
+    if (c32strtomb(chars, (strlen32(chars) * sizeof(char32_t)), &content,
+                   &content_len) < 0) {
+      SET_ERR(ERRNO_INVALID_ENCODING);
+      fclose(fp);
+      free(chars);
+      return 0;
+    }
+    free(chars);
+  } else {
+    content = (char *)malloc((file_size + 1) * sizeof(char));
+    char *p = &content[0];
+    size_t nread = 0;
+
+    while ((nread = fread(p, 1, &content[file_size] - p, fp)) > 0) {
+      p += nread;
+    }
+    content_len = p - &content[0];
+    content[content_len] = '\0';
+  }
+
+  if (ferror(fp)) {
+    SET_ERR(ERRNO_FILE_OPEN_FAILURE);
+    fclose(fp);
+    free(content);
+    return 0;
+  }
+  fclose(fp);
+
+  size_t retval = json_parser_execute(parser, callbacks, content, content_len);
+
+  free(content);
+
+  return retval;
 }
 
 static int json_parser_typed_execute_json_object_cb(json_parser *parser,
