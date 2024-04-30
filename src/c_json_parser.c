@@ -535,6 +535,36 @@ error:
   RETURN(p - data);
 }
 
+LIBRARY_API size_t json_parser_execute_utf16(json_parser *parser, json_parser_callbacks *callbacks, const char16_t *data, size_t len) {
+  char *content = NULL;
+  size_t content_len = 0;
+
+  if (c16strtomb(data, len, &content, &content_len) < 0) {
+    SET_ERR(ERRNO_INVALID_ENCODING);
+    return 0;
+  }
+
+  size_t retval = json_parser_execute(parser, callbacks, content, content_len);
+
+  free(content);
+  return retval;
+}
+
+LIBRARY_API size_t json_parser_execute_utf32(json_parser *parser, json_parser_callbacks *callbacks, const char32_t *data, size_t len) {
+  char *content = NULL;
+  size_t content_len = 0;
+
+  if (c32strtomb(data, len, &content, &content_len) < 0) {
+    SET_ERR(ERRNO_INVALID_ENCODING);
+    return 0;
+  }
+
+  size_t retval = json_parser_execute(parser, callbacks, content, content_len);
+
+  free(content);
+  return retval;
+}
+
 LIBRARY_API size_t json_parser_execute_file(json_parser *parser,
                                             json_parser_callbacks *callbacks,
                                             const char *file) {

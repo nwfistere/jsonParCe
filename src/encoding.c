@@ -108,15 +108,14 @@ static void do_unset_local_locale(char **original_locale) {
 
 #define unset_local_locale() do_unset_local_locale(&_original_locale);
 
-LIBRARY_API int c32strtomb(char32_t *str, size_t str_sz, char **out,
+LIBRARY_API int c32strtomb(const char32_t *str, size_t len, char **out,
                            size_t *out_sz) {
   set_local_locale();
   mbstate_t state = {0};
-  size_t in_sz = str_sz / sizeof(*str);
-  *out = (char *)malloc(MB_CUR_MAX * (in_sz + 1));
+  *out = (char *)malloc(MB_CUR_MAX * (len + 1));
   char *p = *out;
 
-  for (size_t n = 0; n < in_sz; ++n) {
+  for (size_t n = 0; n < len; ++n) {
     size_t rc = c32rtomb(p, str[n], &state);
     if (rc == (size_t)-1) {
       return -1;
@@ -131,15 +130,14 @@ LIBRARY_API int c32strtomb(char32_t *str, size_t str_sz, char **out,
   return 0;
 }
 
-LIBRARY_API int c16strtomb(char16_t *str, size_t str_sz, char **out,
+LIBRARY_API int c16strtomb(const char16_t *str, size_t len, char **out,
                            size_t *out_sz) {
   set_local_locale();
   mbstate_t state = {0};
-  size_t in_sz = str_sz / sizeof(*str);
-  *out = (char *)malloc(MB_CUR_MAX * (in_sz + 1));
+  *out = (char *)malloc(MB_CUR_MAX * (len + 1));
   char *p = *out;
 
-  for (size_t n = 0; n < in_sz; ++n) {
+  for (size_t n = 0; n < len; ++n) {
     size_t rc = c16rtomb(p, str[n], &state);
     if (rc == (size_t)-1) {
       return -1;

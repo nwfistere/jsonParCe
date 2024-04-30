@@ -1,5 +1,6 @@
 #ifndef PARSER_H
 #define PARSER_H
+#include <uchar.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -107,6 +108,14 @@ LIBRARY_API void json_parser_callbacks_init(json_parser_callbacks *parser);
 LIBRARY_API size_t json_parser_execute(json_parser *parser,
                                        json_parser_callbacks *callbacks,
                                        const char *data, size_t len);
+
+LIBRARY_API size_t json_parser_execute_utf16(json_parser *parser,
+                                       json_parser_callbacks *callbacks,
+                                       const char16_t *data, size_t len);
+
+LIBRARY_API size_t json_parser_execute_utf32(json_parser *parser,
+                                       json_parser_callbacks *callbacks,
+                                       const char32_t *data, size_t len);
 
 LIBRARY_API size_t json_parser_execute_file(json_parser *parser,
                                             json_parser_callbacks *callbacks,

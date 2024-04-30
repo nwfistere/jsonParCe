@@ -27,3 +27,11 @@ add_test(${PROJECT_NAME}_test_static ${PROJECT_NAME}_test_static)
 add_test(${PROJECT_NAME}_test_shared ${PROJECT_NAME}_test_shared)
 # Add shared library to path for test environment
 set_tests_properties(${PROJECT_NAME}_test_shared PROPERTIES ENVIRONMENT_MODIFICATION PATH=path_list_append:${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+
+# Copy the encoding files over to the build directory.
+if(CMAKE_CONFIGURATION_TYPES)
+  set(OUTPUT_ENCODING_DIRECTORY "${CMAKE_BINARY_DIR}/test/$<CONFIG>/encodings" CACHE STRING "The output directory for the encoding files")
+else()
+  set(OUTPUT_ENCODING_DIRECTORY "${CMAKE_BINARY_DIR}/test/encodings"  CACHE STRING "The output directory for the encoding files")
+endif()
+add_custom_command(TARGET ${PROJECT_NAME}_test_static POST_BUILD COMMAND "${CMAKE_COMMAND}" -E copy_directory_if_different "${CMAKE_CURRENT_SOURCE_DIR}/encodings" "${OUTPUT_ENCODING_DIRECTORY}")

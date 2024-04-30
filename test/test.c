@@ -21,7 +21,6 @@ static const size_t object_data_len = sizeof(object_data) - 1;
 int on_array_value_cb(json_parser *parser, unsigned int index,
                       const char *value, size_t value_length) {
 #ifdef _WIN32
-  // setlocale(LC_CTYPE, ".utf8");
   SetConsoleOutputCP(65001); // Set windows output to utf-8
 #endif
   printf("[%d]:<%.*s>\n", index, value_length, value);
@@ -32,7 +31,6 @@ int on_object_key_value_pair_cb(json_parser *parser, const char *key,
                                 size_t key_length, const char *value,
                                 size_t value_length) {
 #ifdef _WIN32
-  // setlocale(LC_CTYPE, ".utf8");
   SetConsoleOutputCP(65001); // Set windows output to utf-8
 #endif
   printf("\"%.*s\": <%.*s>\n", key_length, key, value_length, value);
