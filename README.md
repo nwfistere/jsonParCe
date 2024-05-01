@@ -1,7 +1,7 @@
 # c-json-parser
 
 ## Description
-A callback based json parser inspired by [nodejs/http-parser](https://github.com/nodejs/http-parser) built in C.
+A callback based json parser inspired by [nodejs/http-parser](https://github.com/nodejs/http-parser), built in C.
 
 c-json-parser sets itself apart from most JSON libraries by offering a flexible foundation for building advanced logic. It prioritizes extracting all values from the entire JSON input, rather than focusing on specific keys or indices. A prime use case for this library would involve deserializing an entire JSON object into a struct, where each or most JSON values map to a corresponding data member. The library employs callbacks to access values from the original JSON object, without performing any datatype manipulation. As a result, all values are represented as const char* references with length from the input JSON.
 
@@ -94,3 +94,21 @@ int main() {
          1    object      null         -      null         6
          0    {ROOT}      null         -      null         6
 ```
+
+## Building
+c-json-parser uses cmake to compile
+### Running cmake
+```bash
+# From the base of the source code
+mkdir build
+cmake -S . -B ./build # Add optional defines here.
+cmake --build ./build
+cmake --install --prefix <PREFIX>
+```
+### Optional defines
+The following defines can be included in the initial cmake command. The option shown (ON/OFF) is the default.
+ - `-DPARSER_COMPILE_SHARED_LIBRARY=ON`: Enables compiling of the static library
+ - `-DPARSER_COMPILE_STATIC_LIBRARY=ON`: Enables compiling of the shared library
+ - `-DPARSER_ENABLE_TEST=ON`: Enables compiling of the tests
+ - `-DPARSER_ENABLE_TEST_COVERAGE=OFF`: Enables addition of the `--coverage` flag for gcov.
+ - `-DPARSER_ENABLE_EXAMPLE_COMPILE=OFF`: Enables compiling of the examples directory.

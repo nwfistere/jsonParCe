@@ -1,5 +1,3 @@
-#define _CRT_SECURE_NO_WARNINGS
-
 #include "c_json_parser.h"
 #include "encoding.h"
 #include <stdint.h>
@@ -260,12 +258,12 @@ static void json_depth_init(json_depth *depth) {
   memset(depth, 0, sizeof(*depth));
 }
 
-LIBRARY_API void json_parser_init(json_parser *parser) {
+C_JSON_PARSER_API void json_parser_init(json_parser *parser) {
   memset(parser, 0, sizeof(*parser));
   parser->state = s_start;
 }
 
-LIBRARY_API size_t json_parser_execute(json_parser *parser,
+C_JSON_PARSER_API size_t json_parser_execute(json_parser *parser,
                                        json_parser_callbacks *callbacks,
                                        const char *data, size_t len) {
   const char *p = data;
@@ -558,7 +556,7 @@ error:
   RETURN(p - data);
 }
 
-LIBRARY_API size_t json_deep_parser_execute(json_parser *parser,
+C_JSON_PARSER_API size_t json_deep_parser_execute(json_parser *parser,
                                             json_parser_callbacks *callbacks,
                                             const char *data, size_t len) {
   const char *p = data;
@@ -848,7 +846,7 @@ error:
   RETURN(p - data);
 }
 
-LIBRARY_API size_t json_parser_execute_utf16(json_parser *parser,
+C_JSON_PARSER_API size_t json_parser_execute_utf16(json_parser *parser,
                                              json_parser_callbacks *callbacks,
                                              const char16_t *data, size_t len) {
   char *content = NULL;
@@ -867,7 +865,7 @@ LIBRARY_API size_t json_parser_execute_utf16(json_parser *parser,
   return retval;
 }
 
-LIBRARY_API size_t json_parser_execute_utf32(json_parser *parser,
+C_JSON_PARSER_API size_t json_parser_execute_utf32(json_parser *parser,
                                              json_parser_callbacks *callbacks,
                                              const char32_t *data, size_t len) {
   char *content = NULL;
@@ -886,7 +884,7 @@ LIBRARY_API size_t json_parser_execute_utf32(json_parser *parser,
   return retval;
 }
 
-LIBRARY_API size_t json_parser_execute_file(json_parser *parser,
+C_JSON_PARSER_API size_t json_parser_execute_file(json_parser *parser,
                                             json_parser_callbacks *callbacks,
                                             const char *file) {
 
@@ -1014,7 +1012,7 @@ static int json_parser_typed_execute_json_array_cb(json_parser *parser,
   return 0;
 }
 
-LIBRARY_API size_t json_parser_typed_execute(
+C_JSON_PARSER_API size_t json_parser_typed_execute(
     json_parser *parser, json_parser_callbacks_typed *callbacks,
     const char *data, size_t len) {
   size_t retval;
@@ -1032,7 +1030,7 @@ LIBRARY_API size_t json_parser_typed_execute(
   return retval;
 }
 
-LIBRARY_API size_t json_deep_parser_typed_execute(
+C_JSON_PARSER_API size_t json_deep_parser_typed_execute(
     json_parser *parser, json_parser_callbacks_typed *callbacks,
     const char *data, size_t len) {
   size_t retval;

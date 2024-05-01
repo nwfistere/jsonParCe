@@ -59,7 +59,7 @@ int check_json_byte_encoding(uint8_t *bytes) {
   return UNKNOWN;
 }
 
-LIBRARY_API int get_file_info(const char *filepath, FILE **fp, int *encoding,
+C_JSON_PARSER_API int get_file_info(const char *filepath, FILE **fp, int *encoding,
                               size_t *file_size) {
   size_t nread = 0;
   uint8_t bytes[READ_SIZE];
@@ -134,7 +134,7 @@ static void do_unset_local_locale(char **original_locale) {
              ((VALUE >> 8) & 0xff00) | ((VALUE << 24) & 0xff000000);           \
   }
 
-LIBRARY_API int c32strtomb(const char32_t *str, size_t len, int encoding,
+C_JSON_PARSER_API int c32strtomb(const char32_t *str, size_t len, int encoding,
                            char **out, size_t *out_sz) {
   set_local_locale();
   mbstate_t state = {0};
@@ -164,7 +164,7 @@ LIBRARY_API int c32strtomb(const char32_t *str, size_t len, int encoding,
   return 0;
 }
 
-LIBRARY_API int c16strtomb(const char16_t *str, size_t len, int encoding,
+C_JSON_PARSER_API int c16strtomb(const char16_t *str, size_t len, int encoding,
                            char **out, size_t *out_sz) {
   set_local_locale();
   mbstate_t state = {0};

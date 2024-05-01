@@ -1,24 +1,20 @@
-#ifndef C_JSON_ENCODING_H
-#define C_JSON_ENCODING_H
-#define _CRT_SECURE_NO_WARNINGS
+#ifndef C_JSON_PARSER_ENCODING_H
+#define C_JSON_PARSER_ENCODING_H
 
 #include <stdint.h> // uint8_t
 #include <stdio.h>
-#include <stdlib.h>
 #include <uchar.h>
 
 #ifdef _WIN32
-#ifdef LIBRARY_EXPORTS
-#define LIBRARY_API __declspec(dllexport)
+  #ifdef C_JSON_PARSER_LIBRARY_EXPORTS
+    #define C_JSON_PARSER_API __declspec(dllexport)
+  #elif defined(C_JSON_PARSER_STATIC_LIBRARY)
+    #define C_JSON_PARSER_API
+  #else
+    #define C_JSON_PARSER_API __declspec(dllimport)
+  #endif
 #else
-#ifdef LIBRARY_IMPORTS
-#define LIBRARY_API __declspec(dllimport)
-#else
-#define LIBRARY_API
-#endif
-#endif
-#else
-#define LIBRARY_API
+  #define C_JSON_PARSER_API
 #endif
 
 #define READ_SIZE 4
@@ -42,15 +38,15 @@ int check_utf_bom(uint8_t *p);
 // Expects an array of at least 4 bytes present.
 int check_json_byte_encoding(uint8_t *bytes);
 
-LIBRARY_API int c32strtomb(const char32_t *str, size_t str_sz, int encoding,
+C_JSON_PARSER_API int c32strtomb(const char32_t *str, size_t str_sz, int encoding,
                            char **out, size_t *out_sz);
-LIBRARY_API int c16strtomb(const char16_t *str, size_t str_sz, int encoding,
+C_JSON_PARSER_API int c16strtomb(const char16_t *str, size_t str_sz, int encoding,
                            char **out, size_t *out_sz);
-LIBRARY_API int get_file_info(const char *filepath, FILE **fp, int *encoding,
+C_JSON_PARSER_API int get_file_info(const char *filepath, FILE **fp, int *encoding,
                               size_t *file_size);
 
 // https://stackoverflow.com/a/22128415
 size_t strlen16(register const char16_t *string);
 size_t strlen32(register const char32_t *string);
 
-#endif // C_JSON_ENCODING_H
+#endif // C_JSON_PARSER_ENCODING_H

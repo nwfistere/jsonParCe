@@ -3,8 +3,8 @@ cmake_minimum_required(VERSION 3.26)
 set(PARSER_COMPILE_SHARED_LIBRARY ON CACHE BOOL "Enables compiling shared library")
 set(PARSER_COMPILE_STATIC_LIBRARY ON CACHE BOOL "Enables compiling static library")
 set(PARSER_ENABLE_TEST ON CACHE BOOL "Enables compiling tests")
-set(PARSER_ENABLE_TEST_COVERAGE ON CACHE BOOL "Enables test coverage")
-set(PARSER_ENABLE_EXAMPLE_COMPILE ON CACHE BOOL "Enables compiling examples")
+set(PARSER_ENABLE_TEST_COVERAGE OFF CACHE BOOL "Enables test coverage")
+set(PARSER_ENABLE_EXAMPLE_COMPILE OFF CACHE BOOL "Enables compiling examples")
 
 project(json_parser C)
 set(C_STANDARD 11)
@@ -19,14 +19,13 @@ FetchContent_Declare(
   GIT_TAG        master
 )
 
-
 if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
   # MSVC Warning 4820 warns about padded bytes in struct.
   # MSVC Warning 5045 warns about spectre protection
   # MSVC Warning 4996 warns about using strdup
   # MSVC Warning 4127 warns about constant conditional statements.
   # MSVC Warning 4333 warns about shifting too far
-  set(PARSER_COMPILE_OPTIONS /nologo /Wall /WX /wd4820 /wd5045 /wd4996 /wd4127 /wd4333)
+  set(PARSER_COMPILE_OPTIONS /nologo /D_CRT_SECURE_NO_WARNINGS /Wall /WX /wd4820 /wd5045 /wd4996 /wd4127 /wd4333)
   if(CMAKE_BUILD_TYPE STREQUAL "Release")
     list(APPEND PARSER_COMPILE_OPTIONS /Ox)
   else()
@@ -45,26 +44,20 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang" OR CMAKE_C_COMPILER_ID MATCHES "GNU")
   endif()
 endif() # CMAKE_C_COMPILER_ID
 
-add_library(${PROJECT_NAME}_obj OBJECT ${SRCS})
-
-target_include_directories(${PROJECT_NAME}_obj PRIVATE include)
-target_compile_options(${PROJECT_NAME}_obj PRIVATE ${PARSER_COMPILE_OPTIONS})
-if (PARSER_COMPILE_SHARED_LIBRARY AND (CMAKE_C_COMPILER_ID MATCHES "GNU"))
-  target_compile_options(${PROJECT_NAME}_obj PUBLIC -fPIC)
-endif()
 
 if(PARSER_COMPILE_SHARED_LIBRARY)
-  add_library(${PROJECT_NAME}_shared SHARED $<TARGET_OBJECTS:${PROJECT_NAME}_obj>)
+  add_library(${PROJECT_NAME}_shared SHARED ${SRCS})
+  target_include_directories(${PROJECT_NAME}_shared PRIVATE include)
   target_compile_options(${PROJECT_NAME}_shared PRIVATE ${PARSER_COMPILE_OPTIONS})
-  # Export functions
-  target_compile_definitions(${PROJECT_NAME}_shared PRIVATE LIBRARY_EXPORTS)
-  target_compile_definitions(${PROJECT_NAME}_obj PRIVATE LIBRARY_EXPORTS)
+  target_compile_definitions(${PROJECT_NAME}_shared PUBLIC C_JSON_PARSER_LIBRARY_EXPORTS)
   install(TARGETS ${PROJECT_NAME}_shared)
 endif() # PARSER_COMPILE_SHARED_LIBRARY
 
 if(PARSER_COMPILE_STATIC_LIBRARY)
-  add_library(${PROJECT_NAME}_static STATIC $<TARGET_OBJECTS:${PROJECT_NAME}_obj>)
-  target_compile_options(${PROJECT_NAME}_static PRIVATE ${PARSER_COMPILE_OPTIONS})
+  add_library(${PROJECT_NAME}_static STATIC ${SRCS})
+  target_include_directories(${PROJECT_NAME}_static PRIVATE include)
+  target_compile_options(${PROJECT_NAME}_static PRIVATE ${PARSER_COMPILE_OPTIONS} )
+  target_compile_definitions(${PROJECT_NAME}_static PUBLIC C_JSON_PARSER_STATIC_LIBRARY)
   set_target_properties(${PROJECT_NAME}_static PROPERTIES PUBLIC_HEADER "include/c_json_parser.h")
   install(TARGETS ${PROJECT_NAME}_static PUBLIC_HEADER DESTINATION include)
 endif() # PARSER_COMPILE_STATIC_LIBRARY
