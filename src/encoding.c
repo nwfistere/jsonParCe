@@ -30,6 +30,10 @@ int check_utf_bom(uint8_t *p) {
   return UNKNOWN;
 };
 
+// https://jameshfisher.com/2017/01/24/bitwise-check-for-zero-byte/
+#define contains_zero_bytes_32(v) \
+  (((v) - (uint32_t)0x01010101) & ~(v) & (uint32_t)(0x80808080))
+
 int check_json_byte_encoding(uint8_t *bytes) {
   int type = 0;
   if ((type = check_utf_bom(bytes)) > 0) {
@@ -39,16 +43,15 @@ int check_json_byte_encoding(uint8_t *bytes) {
     uint8_t two = *(bytes + 1);
     uint8_t three = *(bytes + 2);
     uint8_t four = *(bytes + 3);
-    if (!(one & 0xFF) && !(two & 0xFF) & !(three & 0xFF)) {
+    if (!(one | two | three)) {
       return UTF32BE;
-    } else if (!(two & 0xFF) && !(three & 0xFF) & !(four & 0xFF)) {
+    } else if (!(two | three | four)) {
       return UTF32LE;
-    } else if (!(one & 0xFF) && !(three & 0xFF)) {
+    } else if (!(one | three)) {
       return UTF16BE;
-    } else if (!(two & 0xFF) && !(four & 0xFF)) {
+    } else if (!(two | four)) {
       return UTF16LE;
-    } else if ((one & 0xFF) && (two & 0xFF) && (three & 0xFF) &&
-               (four & 0xFF)) {
+    } else if (!contains_zero_bytes_32(((uint32_t*)bytes)[0])) {
       return UTF8;
     }
   }
