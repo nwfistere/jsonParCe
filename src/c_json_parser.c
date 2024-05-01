@@ -256,7 +256,9 @@ typedef struct json_parser_typed {
   json_parser_callbacks_typed *callbacks;
 } json_parser_typed;
 
-void json_depth_init(json_depth *depth) { memset(depth, 0, sizeof(*depth)); }
+static void json_depth_init(json_depth *depth) {
+  memset(depth, 0, sizeof(*depth));
+}
 
 LIBRARY_API void json_parser_init(json_parser *parser) {
   memset(parser, 0, sizeof(*parser));
@@ -396,6 +398,7 @@ LIBRARY_API size_t json_parser_execute(json_parser *parser,
       if (ch == COMMA || ch == CB || IS_WHITESPACE(ch)) {
         ARRAY_CALLBACK_NOADVANCE();
         UPDATE_STATE(s_parse_array);
+        REEXECUTE();
       }
       break;
     }
@@ -687,6 +690,7 @@ LIBRARY_API size_t json_deep_parser_execute(json_parser *parser,
       if (ch == COMMA || ch == CB || IS_WHITESPACE(ch)) {
         ARRAY_CALLBACK_NOADVANCE();
         UPDATE_STATE(s_parse_array);
+        REEXECUTE();
       }
       break;
     }
@@ -1024,6 +1028,24 @@ LIBRARY_API size_t json_parser_typed_execute(
   _parser.data = &_data;
 
   retval = json_parser_execute(&_parser, &cbs, data, len);
+  UPDATE_PARSER(parser, &_parser);
+  return retval;
+}
+
+LIBRARY_API size_t json_deep_parser_typed_execute(
+    json_parser *parser, json_parser_callbacks_typed *callbacks,
+    const char *data, size_t len) {
+  size_t retval;
+  json_parser_callbacks cbs = {
+      .on_object_key_value_pair = json_parser_typed_execute_json_object_cb,
+      .on_array_value = json_parser_typed_execute_json_array_cb};
+
+  json_parser_typed _data = {.parser = parser, .callbacks = callbacks};
+
+  json_parser _parser = *parser;
+  _parser.data = &_data;
+
+  retval = json_deep_parser_execute(&_parser, &cbs, data, len);
   UPDATE_PARSER(parser, &_parser);
   return retval;
 }

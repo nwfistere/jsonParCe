@@ -4,6 +4,7 @@ set(PARSER_COMPILE_SHARED_LIBRARY ON CACHE BOOL "Enables compiling shared librar
 set(PARSER_COMPILE_STATIC_LIBRARY ON CACHE BOOL "Enables compiling static library")
 set(PARSER_ENABLE_TEST ON CACHE BOOL "Enables compiling tests")
 set(PARSER_ENABLE_TEST_COVERAGE ON CACHE BOOL "Enables test coverage")
+set(PARSER_ENABLE_EXAMPLE_COMPILE ON CACHE BOOL "Enables compiling examples")
 
 project(json_parser C)
 set(C_STANDARD 11)
@@ -72,4 +73,8 @@ if(PARSER_ENABLE_TEST)
   FetchContent_MakeAvailable(JSONTestSuite)
   enable_testing()
   add_subdirectory(test)
+endif()
+
+if(PARSER_ENABLE_EXAMPLE_COMPILE)
+  add_subdirectory(examples)
 endif()

@@ -9,12 +9,12 @@ extern "C" {
 
 typedef enum JSON_TYPE {
   NONE = 0,
-  OBJECT,
-  ARRAY,
-  NUMBER,
-  STRING,
-  BOOL_TYPE,
-  NULL_TYPE
+  OBJECT = 1 << 0,
+  ARRAY = 1 << 1,
+  NUMBER = 1 << 2,
+  STRING = 1 << 3,
+  BOOL_TYPE = 1 << 4,
+  NULL_TYPE = 1 << 5
 } JSON_TYPE;
 
 #ifdef _WIN32
@@ -76,8 +76,6 @@ typedef struct json_parser {
   unsigned int array_index;
   unsigned int array_count;
   unsigned int object_count;
-  // unsigned int encoding; // Don't think we'll need this right now...
-  // Currently translating everythign to mb utf8
 
   const char *array_item_mark;
   const char *object_key_mark;
@@ -119,10 +117,7 @@ typedef struct json_parser_callbacks_typed {
   json_array_typed_cb on_array_value;
 } json_parser_callbacks_typed;
 
-void json_depth_init(json_depth *depth);
-
 LIBRARY_API void json_parser_init(json_parser *parser);
-LIBRARY_API void json_parser_callbacks_init(json_parser_callbacks *parser);
 
 LIBRARY_API size_t json_parser_execute(json_parser *parser,
                                        json_parser_callbacks *callbacks,
@@ -145,6 +140,10 @@ LIBRARY_API size_t json_parser_execute_file(json_parser *parser,
                                             const char *file);
 
 LIBRARY_API size_t json_parser_typed_execute(
+    json_parser *parser, json_parser_callbacks_typed *callbacks,
+    const char *data, size_t len);
+
+LIBRARY_API size_t json_deep_parser_typed_execute(
     json_parser *parser, json_parser_callbacks_typed *callbacks,
     const char *data, size_t len);
 
