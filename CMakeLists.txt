@@ -2,9 +2,11 @@ cmake_minimum_required(VERSION 3.26)
 
 set(PARSER_COMPILE_SHARED_LIBRARY ON CACHE BOOL "Enables compiling shared library")
 set(PARSER_COMPILE_STATIC_LIBRARY ON CACHE BOOL "Enables compiling static library")
-set(PARSER_ENABLE_TEST ON CACHE BOOL "Enables compiling tests")
+set(PARSER_ENABLE_TEST OFF CACHE BOOL "Enables compiling tests")
 set(PARSER_ENABLE_TEST_COVERAGE OFF CACHE BOOL "Enables test coverage")
 set(PARSER_ENABLE_EXAMPLE_COMPILE OFF CACHE BOOL "Enables compiling examples")
+set(PARSER_ENABLE_SANITIZERS OFF CACHE BOOL "Enables compiling with sanitizer flags")
+
 
 project(json_parser C)
 set(C_STANDARD 11)
@@ -44,6 +46,19 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang" OR CMAKE_C_COMPILER_ID MATCHES "GNU")
   endif()
 endif() # CMAKE_C_COMPILER_ID
 
+
+if(PARSER_ENABLE_SANITIZERS)
+  list(APPEND PARSER_COMPILE_OPTIONS 
+    -fno-omit-frame-pointer
+    -fsanitize=address
+    -fsanitize=undefined
+    -fsanitize=float-cast-overflow
+    -fsanitize-address-use-after-scope
+    -fsanitize=integer
+    -01
+    -fno-sanitize-recover
+  )
+endif() # PARSER_ENABLE_SANITIZERS
 
 if(PARSER_COMPILE_SHARED_LIBRARY)
   add_library(${PROJECT_NAME}_shared SHARED ${SRCS})

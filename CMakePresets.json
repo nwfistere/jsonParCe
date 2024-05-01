@@ -30,6 +30,14 @@
         "CMAKE_VERBOSE_MAKEFILE": {
           "type": "BOOL",
           "value": "ON"
+        },
+        "PARSER_ENABLE_TEST": {
+          "type": "BOOL",
+          "value": "ON"
+        },
+        "PARSER_ENABLE_EXAMPLE_COMPILE": {
+          "type": "BOOL",
+          "value": "ON"
         }
       }
     },
