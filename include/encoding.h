@@ -46,7 +46,8 @@ LIBRARY_API int c32strtomb(const char32_t *str, size_t str_sz, int encoding,
                            char **out, size_t *out_sz);
 LIBRARY_API int c16strtomb(const char16_t *str, size_t str_sz, int encoding,
                            char **out, size_t *out_sz);
-LIBRARY_API int get_file_encoding(const char *file);
+LIBRARY_API int get_file_info(const char *filepath, FILE **fp, int *encoding,
+                              size_t *file_size);
 
 // https://stackoverflow.com/a/22128415
 size_t strlen16(register const char16_t *string);

@@ -63,6 +63,23 @@
   }                                                                            \
   parser->array_index++
 
+#define FIND_STRING_END(CHAR, NEW_STATE)                                       \
+  if (CHAR == QM) {                                                            \
+    UPDATE_STATE(NEW_STATE);                                                   \
+  } else if (ch == '\\') {                                                     \
+    p++;                                                                       \
+  }                                                                            \
+  break;
+
+#define FIND_STRING_END_REEXECUTE(CHAR, NEW_STATE)                             \
+  if (CHAR == QM) {                                                            \
+    UPDATE_STATE(NEW_STATE);                                                   \
+    REEXECUTE();                                                               \
+  } else if (ch == '\\') {                                                     \
+    p++;                                                                       \
+  }                                                                            \
+  break;
+
 #define ARRAY_CALLBACK() P_ARRAY_CALLBACK((p - parser->array_item_mark) + 1)
 #define ARRAY_CALLBACK_NOADVANCE()                                             \
   P_ARRAY_CALLBACK((p - parser->array_item_mark))
@@ -140,7 +157,59 @@
     (LP)->object_key_mark = (RP)->object_key_mark;                             \
     (LP)->object_key_len = (RP)->object_key_len;                               \
     (LP)->object_value_mark = (RP)->object_value_mark;                         \
+    (LP)->current_depth = (RP)->current_depth;                                 \
+    (LP)->max_depth = (RP)->max_depth;                                         \
   } while (0)
+
+#define INCREASE_DEPTH(NEW_STATE, MAX_DEPTH_STATE)                             \
+  if ((parser->max_depth > 0) &&                                               \
+      (parser->current_depth->depth == parser->max_depth)) {                   \
+    /* hit max depth, stop here. */                                            \
+    UPDATE_STATE(MAX_DEPTH_STATE);                                             \
+    REEXECUTE();                                                               \
+  } else {                                                                     \
+    json_depth *new_depth = (json_depth *)malloc(sizeof(json_depth));          \
+    json_depth_init(new_depth);                                                \
+    new_depth->depth = parser->current_depth->depth + 1;                       \
+    new_depth->parent = parser->current_depth;                                 \
+    new_depth->key = parser->object_key_mark;                                  \
+    new_depth->key_len = parser->object_key_len;                               \
+    new_depth->array_index = parser->array_index;                              \
+    if (ch == OCB) {                                                           \
+      new_depth->type = 1;                                                     \
+    } else {                                                                   \
+      /* leave type as zero for array. */                                      \
+    }                                                                          \
+    parser->object_key_mark = NULL;                                            \
+    parser->object_key_len = 0;                                                \
+    parser->array_index = 0;                                                   \
+    parser->current_depth = new_depth;                                         \
+    UPDATE_STATE(NEW_STATE);                                                   \
+  }                                                                            \
+  break;
+
+// Will need the following states:
+// - Parent type (Array or Object)
+// - Current depth
+#define DECREASE_DEPTH()                                                       \
+  if (parser->current_depth->depth == 0) {                                     \
+    UPDATE_STATE(s_done);                                                      \
+  } else {                                                                     \
+    json_depth *old_depth = parser->current_depth;                             \
+    parser->object_key_mark = old_depth->key;                                  \
+    parser->object_key_len = old_depth->key_len;                               \
+    parser->array_index = old_depth->array_index;                              \
+    parser->current_depth = parser->current_depth->parent;                     \
+    free(old_depth);                                                           \
+    if (parser->current_depth->type) {                                         \
+      UPDATE_STATE(s_parse_object);                                            \
+    } else {                                                                   \
+      /* since we're not calling the callback, we need to manually increment   \
+       * the array_index. */                                                   \
+      parser->array_index++;                                                   \
+      UPDATE_STATE(s_parse_array);                                             \
+    }                                                                          \
+  }
 
 enum state {
   s_dead = 1,
@@ -187,6 +256,8 @@ typedef struct json_parser_typed {
   json_parser_callbacks_typed *callbacks;
 } json_parser_typed;
 
+void json_depth_init(json_depth *depth) { memset(depth, 0, sizeof(*depth)); }
+
 LIBRARY_API void json_parser_init(json_parser *parser) {
   memset(parser, 0, sizeof(*parser));
   parser->state = s_start;
@@ -199,13 +270,6 @@ LIBRARY_API size_t json_parser_execute(json_parser *parser,
   enum state p_state = (enum state)parser->state;
   size_t nread = parser->nread;
   char ch;
-
-  if (parser->encoding == UNKNOWN && len >= 4) {
-    // assume it's the start of the json object and attempt to get encoding.
-    // TODO: Will want to verify we're not in the middle of an object with an
-    // unknown encoding.
-    parser->encoding = check_json_byte_encoding((uint8_t *)data);
-  }
 
   for (p = data; p != data + len; p++) {
     ch = *p;
@@ -271,12 +335,7 @@ LIBRARY_API size_t json_parser_execute(json_parser *parser,
       break;
     }
     case s_parse_array_find_array_end_string_end: {
-      if (ch == QM) {
-        UPDATE_STATE(s_parse_array_find_array_end);
-      } else if (ch == '\\') {
-        p++; // Skip escaped characters.
-      }
-      break;
+      FIND_STRING_END(ch, s_parse_array_find_array_end);
     }
     case s_parse_array_item_end: {
       ARRAY_CALLBACK();
@@ -300,23 +359,10 @@ LIBRARY_API size_t json_parser_execute(json_parser *parser,
       break;
     }
     case s_parse_array_find_object_end_string_end: {
-      // TODO combine with s_parse_array_find_array_end_string_end
-      if (ch == QM) {
-        UPDATE_STATE(s_parse_array_find_object_end);
-      } else if (ch == '\\') {
-        p++; // Skip escaped characters.
-      }
-      break;
+      FIND_STRING_END(ch, s_parse_array_find_object_end);
     }
     case s_parse_array_string: {
-      // TODO combine with s_parse_array_find_array_end_string_end
-      if (ch == QM) {
-        UPDATE_STATE(s_parse_array_item_end);
-        REEXECUTE();
-      } else if (ch == '\\') {
-        p++; // Skip escaped characters.
-      }
-      break;
+      FIND_STRING_END_REEXECUTE(ch, s_parse_array_item_end);
     }
     case s_parse_array_nu: {
       UPDATE_STATE(s_parse_array_nul);
@@ -369,14 +415,7 @@ LIBRARY_API size_t json_parser_execute(json_parser *parser,
       break;
     }
     case s_parse_object_parse_key: {
-      // TODO combine with s_parse_array_find_array_end_string_end
-      if (ch == QM) {
-        UPDATE_STATE(s_parse_object_parse_key_end);
-        REEXECUTE();
-      } else if (ch == '\\') {
-        p++; // Skip escaped characters.
-      }
-      break;
+      FIND_STRING_END_REEXECUTE(ch, s_parse_object_parse_key_end);
     }
     case s_parse_object_parse_key_end: {
       MARK_OBJECT_KEY_LENGTH(p);
@@ -416,14 +455,7 @@ LIBRARY_API size_t json_parser_execute(json_parser *parser,
       break;
     }
     case s_parse_object_value_string: {
-      // TODO combine with s_parse_array_find_array_end_string_end
-      if (ch == QM) {
-        UPDATE_STATE(s_parse_object_value_end);
-        REEXECUTE();
-      } else if (ch == '\\') {
-        p++; // Skip escaped characters.
-      }
-      break;
+      FIND_STRING_END_REEXECUTE(ch, s_parse_object_value_end);
     }
     case s_parse_object_value_numeric: {
       if (ch == COMMA || ch == CCB || IS_WHITESPACE(ch)) {
@@ -477,13 +509,7 @@ LIBRARY_API size_t json_parser_execute(json_parser *parser,
       break;
     }
     case s_parse_object_value_find_array_end_string_end: {
-      // TODO combine with s_parse_array_find_array_end_string_end
-      if (ch == QM) {
-        UPDATE_STATE(s_parse_object_value_find_array_end);
-      } else if (ch == '\\') {
-        p++; // Skip escaped characters.
-      }
-      break;
+      FIND_STRING_END(ch, s_parse_object_value_find_array_end);
     }
     case s_parse_object_value_find_object_end: {
       if (ch == OCB) {
@@ -502,13 +528,296 @@ LIBRARY_API size_t json_parser_execute(json_parser *parser,
       break;
     }
     case s_parse_object_value_find_object_end_string_end: {
-      // TODO combine with s_parse_array_find_array_end_string_end
-      if (ch == QM) {
-        UPDATE_STATE(s_parse_object_value_find_object_end);
-      } else if (ch == '\\') {
-        p++; // Skip escaped characters.
+      FIND_STRING_END(ch, s_parse_object_value_find_object_end);
+    }
+    case s_parse_object_value_end: {
+      OBJECT_CALLBACK()
+      UPDATE_STATE(s_parse_object);
+      break;
+    }
+    case s_done: {
+      if (p != (data + len - 1)) {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
       }
       break;
+    }
+    }
+  }
+
+  RETURN(len);
+
+error:
+  if (JSON_ERRNO(parser) == ERRNO_OK) {
+    SET_ERRNO(ERRNO_UNKNOWN);
+  }
+
+  RETURN(p - data);
+}
+
+LIBRARY_API size_t json_deep_parser_execute(json_parser *parser,
+                                            json_parser_callbacks *callbacks,
+                                            const char *data, size_t len) {
+  const char *p = data;
+  enum state p_state = (enum state)parser->state;
+  size_t nread = parser->nread;
+  char ch;
+
+  for (p = data; p != data + len; p++) {
+    ch = *p;
+  reexecute:
+    switch (p_state) {
+    case s_dead: {
+      SET_ERRNO(ERRNO_INVALID_STATE);
+      goto error;
+    }
+    case s_start: {
+      if (IS_NEWLINE(ch)) {
+        break;
+      }
+      parser->current_depth = (json_depth *)malloc(sizeof(json_depth));
+      json_depth_init(parser->current_depth);
+      if (ch == OB) {
+        UPDATE_STATE(s_parse_array);
+      } else if (ch == OCB) {
+        parser->current_depth->type = 1;
+        UPDATE_STATE(s_parse_object);
+      }
+      break;
+    }
+    case s_parse_array: {
+      if (IS_WHITESPACE(ch) || ch == COMMA) {
+        break;
+      }
+      MARK_ARRAY_ITEM_START(p);
+      if (ch == OB) {
+        INCREASE_DEPTH(s_parse_array, s_parse_array_find_array_end);
+      } else if (ch == OCB) {
+        INCREASE_DEPTH(s_parse_object, s_parse_array_find_object_end);
+      } else if (ch == CB) {
+        DECREASE_DEPTH();
+      } else if (ch == QM) {
+        UPDATE_STATE(s_parse_array_string);
+      } else if (ch == 't') {
+        UPDATE_STATE(s_parse_array_tr);
+      } else if (ch == 'f') {
+        UPDATE_STATE(s_parse_array_fa);
+      } else if (ch == 'n') {
+        UPDATE_STATE(s_parse_array_nu);
+      } else if (IS_NUMERIC(ch)) {
+        UPDATE_STATE(s_parse_array_numeric);
+      }
+      break;
+    }
+    case s_parse_array_find_array_end: {
+      if (ch == OB) {
+        parser->array_count++;
+      } else if (ch == CB) {
+        parser->array_count--;
+      } else if (ch == QM) {
+        UPDATE_STATE(s_parse_array_find_array_end_string_end);
+        break;
+      }
+
+      if (parser->array_count == 0) {
+        UPDATE_STATE(s_parse_array_item_end);
+        REEXECUTE();
+      }
+      break;
+    }
+    case s_parse_array_find_array_end_string_end: {
+      FIND_STRING_END(ch, s_parse_array_find_array_end)
+    }
+    case s_parse_array_item_end: {
+      ARRAY_CALLBACK();
+      UPDATE_STATE(s_parse_array);
+      break;
+    }
+    case s_parse_array_find_object_end: {
+      if (ch == OCB) {
+        parser->object_count++;
+      } else if (ch == CCB) {
+        parser->object_count--;
+      } else if (ch == QM) {
+        UPDATE_STATE(s_parse_array_find_object_end_string_end);
+        break;
+      }
+
+      if (parser->object_count == 0) {
+        UPDATE_STATE(s_parse_array_item_end);
+        REEXECUTE();
+      }
+      break;
+    }
+    case s_parse_array_find_object_end_string_end: {
+      FIND_STRING_END(ch, s_parse_array_find_object_end);
+    }
+    case s_parse_array_string: {
+      FIND_STRING_END_REEXECUTE(ch, s_parse_array_item_end);
+    }
+    case s_parse_array_nu: {
+      UPDATE_STATE(s_parse_array_nul);
+      break;
+    }
+    case s_parse_array_nul: {
+      UPDATE_STATE(s_parse_array_item_end);
+      break;
+    }
+    case s_parse_array_tr: {
+      UPDATE_STATE(s_parse_array_tru);
+      break;
+    }
+    case s_parse_array_tru: {
+      UPDATE_STATE(s_parse_array_item_end);
+      break;
+    }
+    case s_parse_array_fa: {
+      UPDATE_STATE(s_parse_array_fal);
+      break;
+    }
+    case s_parse_array_fal: {
+      UPDATE_STATE(s_parse_array_fals);
+      break;
+    }
+    case s_parse_array_fals: {
+      UPDATE_STATE(s_parse_array_item_end);
+      break;
+    }
+    case s_parse_array_numeric: {
+      if (ch == COMMA || ch == CB || IS_WHITESPACE(ch)) {
+        ARRAY_CALLBACK_NOADVANCE();
+        UPDATE_STATE(s_parse_array);
+      }
+      break;
+    }
+    case s_parse_object: {
+      if (IS_WHITESPACE(ch) || ch == COMMA) {
+        break;
+      }
+      if (ch == QM) {
+        MARK_OBJECT_KEY_START(p + 1);
+        UPDATE_STATE(s_parse_object_parse_key);
+      } else if (ch == CCB) {
+        DECREASE_DEPTH();
+      } else {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+      break;
+    }
+    case s_parse_object_parse_key: {
+      FIND_STRING_END_REEXECUTE(ch, s_parse_object_parse_key_end);
+    }
+    case s_parse_object_parse_key_end: {
+      MARK_OBJECT_KEY_LENGTH(p);
+      UPDATE_STATE(s_parse_object_colon);
+      break;
+    }
+    case s_parse_object_colon: {
+      if (IS_WHITESPACE(ch)) {
+        break;
+      } else if (ch == COLON) {
+        UPDATE_STATE(s_parse_object_value);
+      }
+      break;
+    }
+    case s_parse_object_value: {
+      if (IS_WHITESPACE(ch)) {
+        break;
+      }
+      MARK_OBJECT_VALUE_START(p);
+      if (ch == QM) {
+        UPDATE_STATE(s_parse_object_value_string);
+      } else if (ch == OCB) {
+        INCREASE_DEPTH(s_parse_object, s_parse_object_value_find_object_end);
+      } else if (ch == OB) {
+        INCREASE_DEPTH(s_parse_array, s_parse_object_value_find_array_end);
+      } else if (ch == 't') {
+        UPDATE_STATE(s_parse_object_value_tr);
+      } else if (ch == 'f') {
+        UPDATE_STATE(s_parse_object_value_fa);
+      } else if (ch == 'n') {
+        UPDATE_STATE(s_parse_object_value_nu);
+      } else if (IS_NUMERIC(ch)) {
+        UPDATE_STATE(s_parse_object_value_numeric);
+      }
+      break;
+    }
+    case s_parse_object_value_string: {
+      FIND_STRING_END_REEXECUTE(ch, s_parse_object_value_end);
+    }
+    case s_parse_object_value_numeric: {
+      if (ch == COMMA || ch == CCB || IS_WHITESPACE(ch)) {
+        OBJECT_CALLBACK_NOADVANCE()
+        UPDATE_STATE(s_parse_object);
+      }
+      break;
+    }
+    case s_parse_object_value_nu: {
+      UPDATE_STATE(s_parse_object_value_nul);
+      break;
+    }
+    case s_parse_object_value_nul: {
+      UPDATE_STATE(s_parse_object_value_end);
+      break;
+    }
+    case s_parse_object_value_tr: {
+      UPDATE_STATE(s_parse_object_value_tru);
+      break;
+    }
+    case s_parse_object_value_tru: {
+      UPDATE_STATE(s_parse_object_value_end);
+      break;
+    }
+    case s_parse_object_value_fa: {
+      UPDATE_STATE(s_parse_object_value_fal);
+      break;
+    }
+    case s_parse_object_value_fal: {
+      UPDATE_STATE(s_parse_object_value_fals);
+      break;
+    }
+    case s_parse_object_value_fals: {
+      UPDATE_STATE(s_parse_object_value_end);
+      break;
+    }
+    case s_parse_object_value_find_array_end: {
+      if (ch == OB) {
+        parser->array_count++;
+      } else if (ch == CB) {
+        parser->array_count--;
+      } else if (ch == QM) {
+        UPDATE_STATE(s_parse_object_value_find_array_end_string_end);
+        break;
+      }
+
+      if (parser->array_count == 0) {
+        UPDATE_STATE(s_parse_object_value_end);
+        REEXECUTE();
+      }
+      break;
+    }
+    case s_parse_object_value_find_array_end_string_end: {
+      FIND_STRING_END(ch, s_parse_object_value_find_array_end)
+    }
+    case s_parse_object_value_find_object_end: {
+      if (ch == OCB) {
+        parser->object_count++;
+      } else if (ch == CCB) {
+        parser->object_count--;
+      } else if (ch == QM) {
+        UPDATE_STATE(s_parse_object_value_find_object_end_string_end);
+        break;
+      }
+
+      if (parser->object_count == 0) {
+        UPDATE_STATE(s_parse_object_value_end);
+        REEXECUTE();
+      }
+      break;
+    }
+    case s_parse_object_value_find_object_end_string_end: {
+      FIND_STRING_END(ch, s_parse_object_value_find_object_end)
     }
     case s_parse_object_value_end: {
       OBJECT_CALLBACK()
@@ -577,24 +886,18 @@ LIBRARY_API size_t json_parser_execute_file(json_parser *parser,
                                             json_parser_callbacks *callbacks,
                                             const char *file) {
 
-  int encoding = get_file_encoding(file);
-  if (encoding < 0) {
+  int encoding = UNKNOWN;
+  size_t file_size = 0;
+  FILE *fp;
+  if (get_file_info(file, &fp, &encoding, &file_size) != 0) {
     SET_ERR(ERRNO_FILE_OPEN_FAILURE);
     return 0;
-  } else if (encoding == 0) {
+  }
+
+  if (encoding == 0) {
     SET_ERR(ERRNO_INVALID_ENCODING);
     return 0;
   }
-
-  FILE *fp = fopen(file, "r");
-  if (!fp) {
-    SET_ERR(ERRNO_FILE_OPEN_FAILURE);
-    return 0;
-  }
-
-  fseek(fp, 0, SEEK_END);
-  size_t file_size = ftell(fp);
-  fseek(fp, 0, SEEK_SET);
 
   char *content = NULL;
   size_t content_len = 0;
@@ -666,7 +969,7 @@ LIBRARY_API size_t json_parser_execute_file(json_parser *parser,
 
 static int json_parser_typed_execute_json_object_cb(json_parser *parser,
                                                     const char *key,
-                                                    size_t key_length,
+                                                    size_t key_len,
                                                     const char *value,
                                                     size_t value_length) {
   json_parser_typed *_data = parser->data;
@@ -681,7 +984,7 @@ static int json_parser_typed_execute_json_object_cb(json_parser *parser,
     }
     UPDATE_PARSER(_data->parser, parser);
     return _data->callbacks->on_object_key_value_pair(
-        _data->parser, key, key_length, type, value, value_length);
+        _data->parser, key, key_len, type, value, value_length);
   }
   return 0;
 }

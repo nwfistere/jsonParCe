@@ -8,7 +8,15 @@ set(PARSER_ENABLE_TEST_COVERAGE ON CACHE BOOL "Enables test coverage")
 project(json_parser C)
 set(C_STANDARD 11)
 
+include(FetchContent)
+
 set(SRCS ./src/c_json_parser.c ./src/encoding.c)
+
+FetchContent_Declare(
+  JSONTestSuite
+  GIT_REPOSITORY https://github.com/nst/JSONTestSuite.git
+  GIT_TAG        master
+)
 
 
 if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
@@ -61,6 +69,7 @@ if(PARSER_COMPILE_STATIC_LIBRARY)
 endif() # PARSER_COMPILE_STATIC_LIBRARY
 
 if(PARSER_ENABLE_TEST)
+  FetchContent_MakeAvailable(JSONTestSuite)
   enable_testing()
   add_subdirectory(test)
 endif()

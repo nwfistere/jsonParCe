@@ -31,7 +31,7 @@ int check_utf_bom(uint8_t *p) {
 };
 
 // https://jameshfisher.com/2017/01/24/bitwise-check-for-zero-byte/
-#define contains_zero_bytes_32(v) \
+#define contains_zero_bytes_32(v)                                              \
   (((v) - (uint32_t)0x01010101) & ~(v) & (uint32_t)(0x80808080))
 
 int check_json_byte_encoding(uint8_t *bytes) {
@@ -51,7 +51,7 @@ int check_json_byte_encoding(uint8_t *bytes) {
       return UTF16BE;
     } else if (!(two | four)) {
       return UTF16LE;
-    } else if (!contains_zero_bytes_32(((uint32_t*)bytes)[0])) {
+    } else if (!contains_zero_bytes_32(((uint32_t *)bytes)[0])) {
       return UTF8;
     }
   }
@@ -59,27 +59,42 @@ int check_json_byte_encoding(uint8_t *bytes) {
   return UNKNOWN;
 }
 
-LIBRARY_API int get_file_encoding(const char *file) {
+LIBRARY_API int get_file_info(const char *filepath, FILE **fp, int *encoding,
+                              size_t *file_size) {
   size_t nread = 0;
   uint8_t bytes[READ_SIZE];
   uint8_t *p = &bytes[0];
 
-  FILE *fp = fopen(file, "r");
-  if (!fp) {
+  *fp = fopen(filepath, "r");
+  if (!*fp) {
     return -1;
   }
 
-  while ((nread = fread(p, 1, &bytes[READ_SIZE] - p, fp)) > 0) {
+  fseek(*fp, 0, SEEK_END);
+  *file_size = ftell(*fp);
+  fseek(*fp, 0, SEEK_SET);
+
+  if (*file_size < READ_SIZE) {
+    // If the file size is less than the
+    // READ_SIZE, just assume it's utf8 and continue on.
+    *encoding = UTF8;
+    return 0;
+  }
+
+  while ((nread = fread(p, 1, &bytes[READ_SIZE] - p, *fp)) > 0) {
     p += nread;
   }
 
-  if (ferror(fp)) {
-    fclose(fp);
+  if (ferror(*fp)) {
+    fclose(*fp);
     return -1;
   }
-  fclose(fp);
 
-  return check_json_byte_encoding(bytes);
+  fseek(*fp, 0, SEEK_SET);
+
+  *encoding = check_json_byte_encoding(bytes);
+
+  return 0;
 }
 
 static void do_set_local_locale(char **original_locale) {
