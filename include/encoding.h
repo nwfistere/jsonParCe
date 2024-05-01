@@ -42,10 +42,10 @@ int check_utf_bom(uint8_t *p);
 // Expects an array of at least 4 bytes present.
 int check_json_byte_encoding(uint8_t *bytes);
 
-LIBRARY_API int c32strtomb(const char32_t *str, size_t str_sz, char **out,
-                           size_t *out_sz);
-LIBRARY_API int c16strtomb(const char16_t *str, size_t str_sz, char **out,
-                           size_t *out_sz);
+LIBRARY_API int c32strtomb(const char32_t *str, size_t str_sz, int encoding,
+                           char **out, size_t *out_sz);
+LIBRARY_API int c16strtomb(const char16_t *str, size_t str_sz, int encoding,
+                           char **out, size_t *out_sz);
 LIBRARY_API int get_file_encoding(const char *file);
 
 // https://stackoverflow.com/a/22128415

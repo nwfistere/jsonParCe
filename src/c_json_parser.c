@@ -535,11 +535,15 @@ error:
   RETURN(p - data);
 }
 
-LIBRARY_API size_t json_parser_execute_utf16(json_parser *parser, json_parser_callbacks *callbacks, const char16_t *data, size_t len) {
+LIBRARY_API size_t json_parser_execute_utf16(json_parser *parser,
+                                             json_parser_callbacks *callbacks,
+                                             const char16_t *data, size_t len) {
   char *content = NULL;
   size_t content_len = 0;
 
-  if (c16strtomb(data, len, &content, &content_len) < 0) {
+  int encoding = check_json_byte_encoding((uint8_t *)data);
+
+  if (c16strtomb(data, len, encoding, &content, &content_len) < 0) {
     SET_ERR(ERRNO_INVALID_ENCODING);
     return 0;
   }
@@ -550,11 +554,15 @@ LIBRARY_API size_t json_parser_execute_utf16(json_parser *parser, json_parser_ca
   return retval;
 }
 
-LIBRARY_API size_t json_parser_execute_utf32(json_parser *parser, json_parser_callbacks *callbacks, const char32_t *data, size_t len) {
+LIBRARY_API size_t json_parser_execute_utf32(json_parser *parser,
+                                             json_parser_callbacks *callbacks,
+                                             const char32_t *data, size_t len) {
   char *content = NULL;
   size_t content_len = 0;
 
-  if (c32strtomb(data, len, &content, &content_len) < 0) {
+  int encoding = check_json_byte_encoding((uint8_t *)data);
+
+  if (c32strtomb(data, len, encoding, &content, &content_len) < 0) {
     SET_ERR(ERRNO_INVALID_ENCODING);
     return 0;
   }
@@ -601,8 +609,8 @@ LIBRARY_API size_t json_parser_execute_file(json_parser *parser,
     }
     *p = u'\0';
 
-    if (c16strtomb(chars, (strlen16(chars)) * sizeof(char16_t), &content,
-                   &content_len) < 0) {
+    if (c16strtomb(chars, strlen16(chars), encoding, &content, &content_len) <
+        0) {
       SET_ERR(ERRNO_INVALID_ENCODING);
       fclose(fp);
       free(chars);
@@ -621,8 +629,8 @@ LIBRARY_API size_t json_parser_execute_file(json_parser *parser,
     }
     *p = U'\0';
 
-    if (c32strtomb(chars, (strlen32(chars) * sizeof(char32_t)), &content,
-                   &content_len) < 0) {
+    if (c32strtomb(chars, strlen32(chars), encoding, &content, &content_len) <
+        0) {
       SET_ERR(ERRNO_INVALID_ENCODING);
       fclose(fp);
       free(chars);

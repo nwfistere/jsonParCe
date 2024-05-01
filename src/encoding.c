@@ -108,15 +108,31 @@ static void do_unset_local_locale(char **original_locale) {
 
 #define unset_local_locale() do_unset_local_locale(&_original_locale);
 
-LIBRARY_API int c32strtomb(const char32_t *str, size_t len, char **out,
-                           size_t *out_sz) {
+#define flip_endianess(TYPE, VALUE, RESULT)                                    \
+  if (sizeof(TYPE) == 2) {                                                     \
+    RESULT = (((VALUE >> 8) | (VALUE << 8)) & 0xFFFF);                         \
+  } else if (sizeof(TYPE) == 4) {                                              \
+    RESULT = ((VALUE >> 24) & 0xff) | ((VALUE << 8) & 0xff0000) |              \
+             ((VALUE >> 8) & 0xff00) | ((VALUE << 24) & 0xff000000);           \
+  }
+
+LIBRARY_API int c32strtomb(const char32_t *str, size_t len, int encoding,
+                           char **out, size_t *out_sz) {
   set_local_locale();
   mbstate_t state = {0};
   *out = (char *)malloc(MB_CUR_MAX * (len + 1));
   char *p = *out;
 
   for (size_t n = 0; n < len; ++n) {
-    size_t rc = c32rtomb(p, str[n], &state);
+    char32_t tn;
+    if (encoding == UTF32BE) {
+      flip_endianess(char32_t, str[n], tn);
+    } else {
+      tn = str[n];
+    }
+
+    size_t rc = c32rtomb(p, tn, &state);
+
     if (rc == (size_t)-1) {
       return -1;
     }
@@ -130,15 +146,21 @@ LIBRARY_API int c32strtomb(const char32_t *str, size_t len, char **out,
   return 0;
 }
 
-LIBRARY_API int c16strtomb(const char16_t *str, size_t len, char **out,
-                           size_t *out_sz) {
+LIBRARY_API int c16strtomb(const char16_t *str, size_t len, int encoding,
+                           char **out, size_t *out_sz) {
   set_local_locale();
   mbstate_t state = {0};
   *out = (char *)malloc(MB_CUR_MAX * (len + 1));
   char *p = *out;
 
   for (size_t n = 0; n < len; ++n) {
-    size_t rc = c16rtomb(p, str[n], &state);
+    char16_t tn;
+    if (encoding == UTF16BE) {
+      flip_endianess(char16_t, str[n], tn);
+    } else {
+      tn = str[n];
+    }
+    size_t rc = c16rtomb(p, tn, &state);
     if (rc == (size_t)-1) {
       return -1;
     }
