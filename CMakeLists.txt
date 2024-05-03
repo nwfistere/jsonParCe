@@ -22,13 +22,19 @@ FetchContent_Declare(
   GIT_TAG        master
 )
 
+include(CMakePrintHelpers)
+cmake_print_variables(CMAKE_C_SIMULATE_ID)
+cmake_print_variables(CMAKE_C_COMPILER_ID)
+cmake_print_variables(CMAKE_C_COMPILER_FRONTEND_VARIANT)
+
 if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
   # MSVC Warning 4820 warns about padded bytes in struct.
   # MSVC Warning 5045 warns about spectre protection
   # MSVC Warning 4996 warns about using strdup
   # MSVC Warning 4127 warns about constant conditional statements.
   # MSVC Warning 4333 warns about shifting too far
-  set(PARSER_COMPILE_OPTIONS /nologo /D_CRT_SECURE_NO_WARNINGS /Wall /WX /wd4820 /wd5045 /wd4996 /wd4127 /wd4333)
+  set(PARSER_COMPILE_OPTIONS /nologo /Wall /WX /wd4820 /wd5045 /wd4996 /wd4127 /wd4333)
+  list(APPEND PARSER_COMPILE_DEFINITIONS /D_CRT_SECURE_NO_WARNINGS)
   if(CMAKE_BUILD_TYPE STREQUAL "Release")
     list(APPEND PARSER_COMPILE_OPTIONS /Ox)
   else()
@@ -36,6 +42,12 @@ if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
   endif() # CMAKE_BUILD_TYPE STREQUAL "Release"
 elseif(CMAKE_C_COMPILER_ID MATCHES "Clang" OR CMAKE_C_COMPILER_ID MATCHES "GNU")
   set(PARSER_COMPILE_OPTIONS -Wall -Werror)
+  if (CMAKE_C_COMPILER_ID MATCHES "Clang" AND CMAKE_C_SIMULATE_ID MATCHES "MSVC")
+    # Disable the posix name deprecated warnings.
+    list(APPEND PARSER_COMPILE_DEFINITIONS -D_CRT_SECURE_NO_WARNINGS)
+    list(APPEND PARSER_COMPILE_OPTIONS -Wno-deprecated-declarations)
+  endif()
+  
   if(CMAKE_BUILD_TYPE STREQUAL "Release")
     list(APPEND PARSER_COMPILE_OPTIONS -O3)
   else()
@@ -50,14 +62,13 @@ endif() # CMAKE_C_COMPILER_ID
 
 if(PARSER_ENABLE_SANITIZERS)
   if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
-  # /fsanitize=fuzzer
-  # set (C_OPTIONS
-  #     /fsanitize=address
-  #     /fsanitize-address-use-after-return
-  #     /fno-sanitize-address-vcasan-lib
-  #   )
-  #   list(APPEND PARSER_COMPILE_OPTIONS ${C_OPTIONS})
-  #   list(APPEND PARSER_LINK_OPTIONS ${C_OPTIONS})
+    set (C_OPTIONS
+      /fsanitize=address
+      /fsanitize-address-use-after-return
+      /fno-sanitize-address-vcasan-lib
+    )
+    list(APPEND PARSER_COMPILE_OPTIONS ${C_OPTIONS})
+    list(APPEND PARSER_LINK_OPTIONS ${C_OPTIONS})
   elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
     set(C_OPTIONS
       -fno-omit-frame-pointer
@@ -72,27 +83,31 @@ if(PARSER_ENABLE_SANITIZERS)
     list(APPEND PARSER_COMPILE_OPTIONS ${C_OPTIONS})
     list(APPEND PARSER_LINK_OPTIONS ${C_OPTIONS})
   elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
-    set (C_OPTIONS 
-      -fsanitize=kernel-address
-      -fno-omit-frame-pointer
-      -fsanitize=address
-      -fsanitize=undefined
-      -fsanitize=float-cast-overflow
-      -fsanitize-address-use-after-scope
-      -fno-sanitize-recover
-      -O1
-    )
-    list(APPEND PARSER_COMPILE_OPTIONS C_OPTIONS)
-    list(APPEND PARSER_LINK_OPTIONS C_OPTIONS)
+    if (NOT (CMAKE_C_SIMULATE_ID MATCHES "MSVC"))
+      set (C_OPTIONS
+        -fsanitize=address
+        -fsanitize-address-use-after-scope
+        -fno-omit-frame-pointer
+        -fsanitize=undefined
+        -fsanitize=float-cast-overflow
+        -fno-sanitize-recover
+        -O1
+      )
+    endif()
+    list(APPEND PARSER_COMPILE_OPTIONS ${C_OPTIONS})
+    list(APPEND PARSER_LINK_OPTIONS ${C_OPTIONS})
   endif() # CMAKE_C_COMPILER_ID MATCHES
 endif() # PARSER_ENABLE_SANITIZERS
 
 if(PARSER_COMPILE_SHARED_LIBRARY)
+  set(PARSER_SHARED_COMPILE_DEFINITIONS ${PARSER_COMPILE_DEFINITIONS})
+  list(APPEND PARSER_SHARED_COMPILE_DEFINITIONS C_JSON_PARSER_LIBRARY_EXPORTS)
+
   add_library(${PROJECT_NAME}_shared SHARED ${SRCS})
   target_include_directories(${PROJECT_NAME}_shared PRIVATE include)
   target_compile_options(${PROJECT_NAME}_shared PRIVATE ${PARSER_COMPILE_OPTIONS})
   target_link_options(${PROJECT_NAME}_shared PRIVATE ${PARSER_LINK_OPTIONS})
-  target_compile_definitions(${PROJECT_NAME}_shared PUBLIC C_JSON_PARSER_LIBRARY_EXPORTS)
+  target_compile_definitions(${PROJECT_NAME}_shared PUBLIC ${PARSER_SHARED_COMPILE_DEFINITIONS})
   if(PARSER_ENABLE_STRICT_MODE)
     target_compile_definitions(${PROJECT_NAME}_shared PUBLIC C_JSON_PARSER_STRICT_MODE)
   endif()
@@ -100,11 +115,14 @@ if(PARSER_COMPILE_SHARED_LIBRARY)
 endif() # PARSER_COMPILE_SHARED_LIBRARY
 
 if(PARSER_COMPILE_STATIC_LIBRARY)
+  set(PARSER_STATIC_COMPILE_DEFINITIONS ${PARSER_COMPILE_DEFINITIONS})
+  list(APPEND PARSER_STATIC_COMPILE_DEFINITIONS C_JSON_PARSER_STATIC_LIBRARY)
+
   add_library(${PROJECT_NAME}_static STATIC ${SRCS})
   target_include_directories(${PROJECT_NAME}_static PRIVATE include)
   target_compile_options(${PROJECT_NAME}_static PRIVATE ${PARSER_COMPILE_OPTIONS})
   target_link_options(${PROJECT_NAME}_static PRIVATE ${PARSER_LINK_OPTIONS})
-  target_compile_definitions(${PROJECT_NAME}_static PUBLIC C_JSON_PARSER_STATIC_LIBRARY)
+  target_compile_definitions(${PROJECT_NAME}_static PUBLIC ${PARSER_STATIC_COMPILE_DEFINITIONS})
   if(PARSER_ENABLE_STRICT_MODE)
     target_compile_definitions(${PROJECT_NAME}_static PUBLIC C_JSON_PARSER_STRICT_MODE)
   endif()
