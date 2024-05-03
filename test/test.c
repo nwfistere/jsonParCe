@@ -23,20 +23,20 @@ static const size_t object_data_len = sizeof(object_data) - 1;
 
 int on_array_value_cb(json_parser *parser, unsigned int index,
                       const char *value, size_t value_length) {
-#ifdef _WIN32
-  SetConsoleOutputCP(65001); // Set windows output to utf-8
-#endif
-  printf("[%d]:<%.*s>\n", index, value_length, value);
+  // #ifdef _WIN32
+  //   SetConsoleOutputCP(65001); // Set windows output to utf-8
+  // #endif
+  //   printf("[%d]:<%.*s>\n", index, value_length, value);
   return 0;
 }
 
 int on_object_key_value_pair_cb(json_parser *parser, const char *key,
                                 size_t key_length, const char *value,
                                 size_t value_length) {
-#ifdef _WIN32
-  SetConsoleOutputCP(65001); // Set windows output to utf-8
-#endif
-  printf("\"%.*s\": <%.*s>\n", key_length, key, value_length, value);
+  // #ifdef _WIN32
+  //   SetConsoleOutputCP(65001); // Set windows output to utf-8
+  // #endif
+  //   printf("\"%.*s\": <%.*s>\n", key_length, key, value_length, value);
   return 0;
 }
 
@@ -54,22 +54,23 @@ int on_typed_array_value_cb(json_parser *parser, unsigned int index,
 
 int on_deep_array_value_cb(json_parser *parser, unsigned int index,
                            const char *value, size_t value_length) {
-#ifdef _WIN32
-  SetConsoleOutputCP(65001); // Set windows output to utf-8
-#endif
-  printf("%s: %d [%d]:<%.*s>\n", "on_deep_array_value_cb",
-         parser->current_depth->depth, index, value_length, value);
+  // #ifdef _WIN32
+  //   SetConsoleOutputCP(65001); // Set windows output to utf-8
+  // #endif
+  //   printf("%s: %d [%d]:<%.*s>\n", "on_deep_array_value_cb",
+  //          parser->current_depth->depth, index, value_length, value);
   return 0;
 }
 
 int on_deep_object_key_value_pair_cb(json_parser *parser, const char *key,
                                      size_t key_length, const char *value,
                                      size_t value_length) {
-#ifdef _WIN32
-  SetConsoleOutputCP(65001); // Set windows output to utf-8
-#endif
-  printf("%s: %d \"%.*s\": <%.*s>\n", "on_deep_object_key_value_pair_cb",
-         parser->current_depth->depth, key_length, key, value_length, value);
+  // #ifdef _WIN32
+  //   SetConsoleOutputCP(65001); // Set windows output to utf-8
+  // #endif
+  //   printf("%s: %d \"%.*s\": <%.*s>\n", "on_deep_object_key_value_pair_cb",
+  //          parser->current_depth->depth, key_length, key, value_length,
+  //          value);
   return 0;
 }
 
@@ -121,25 +122,25 @@ int main() {
   json_parser_init(&parser);
   size_t retval =
       json_parser_typed_execute(&parser, &tcbs, array_data, array_data_len);
-  assert(retval == array_data_len);
+  print_retval(retval, array_data_len, &parser);
 
   // Test object
   json_parser_init(&parser);
   retval =
       json_parser_typed_execute(&parser, &tcbs, object_data, object_data_len);
-  assert(retval == object_data_len);
+  print_retval(retval, object_data_len, &parser);
 
   // Test deep array
   json_parser_init(&parser);
   retval =
       json_deep_parser_execute(&parser, &deep_cbs, array_data, array_data_len);
-  assert(retval == array_data_len);
+  print_retval(retval, array_data_len, &parser);
 
   // Test deep object
   json_parser_init(&parser);
   retval = json_deep_parser_execute(&parser, &deep_cbs, object_data,
                                     object_data_len);
-  assert(retval == object_data_len);
+  print_retval(retval, object_data_len, &parser);
 
   // 1
   json_parser_init(&parser);
