@@ -6,6 +6,7 @@ set(PARSER_ENABLE_TEST OFF CACHE BOOL "Enables compiling tests")
 set(PARSER_ENABLE_TEST_COVERAGE OFF CACHE BOOL "Enables test coverage")
 set(PARSER_ENABLE_EXAMPLE_COMPILE OFF CACHE BOOL "Enables compiling examples")
 set(PARSER_ENABLE_SANITIZERS OFF CACHE BOOL "Enables compiling with sanitizer flags")
+set(PARSER_ENABLE_STRICT_MODE OFF CACHE BOOL "Enables compiling with strict json syntax mode (will slow down parsing)")
 
 
 project(json_parser C)
@@ -49,14 +50,14 @@ endif() # CMAKE_C_COMPILER_ID
 
 if(PARSER_ENABLE_SANITIZERS)
   if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
-  set (C_OPTIONS
-      /fsanitize=address
-      /fsanitize=fuzzer
-      /fsanitize-address-use-after-return
-      /fno-sanitize-address-vcasan-lib
-    )
-    list(APPEND PARSER_COMPILE_OPTIONS ${C_OPTIONS})
-    list(APPEND PARSER_LINK_OPTIONS ${C_OPTIONS})
+  # /fsanitize=fuzzer
+  # set (C_OPTIONS
+  #     /fsanitize=address
+  #     /fsanitize-address-use-after-return
+  #     /fno-sanitize-address-vcasan-lib
+  #   )
+  #   list(APPEND PARSER_COMPILE_OPTIONS ${C_OPTIONS})
+  #   list(APPEND PARSER_LINK_OPTIONS ${C_OPTIONS})
   elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
     set(C_OPTIONS
       -fno-omit-frame-pointer
@@ -92,6 +93,9 @@ if(PARSER_COMPILE_SHARED_LIBRARY)
   target_compile_options(${PROJECT_NAME}_shared PRIVATE ${PARSER_COMPILE_OPTIONS})
   target_link_options(${PROJECT_NAME}_shared PRIVATE ${PARSER_LINK_OPTIONS})
   target_compile_definitions(${PROJECT_NAME}_shared PUBLIC C_JSON_PARSER_LIBRARY_EXPORTS)
+  if(PARSER_ENABLE_STRICT_MODE)
+    target_compile_definitions(${PROJECT_NAME}_shared PUBLIC C_JSON_PARSER_STRICT_MODE)
+  endif()
   install(TARGETS ${PROJECT_NAME}_shared)
 endif() # PARSER_COMPILE_SHARED_LIBRARY
 
@@ -101,6 +105,9 @@ if(PARSER_COMPILE_STATIC_LIBRARY)
   target_compile_options(${PROJECT_NAME}_static PRIVATE ${PARSER_COMPILE_OPTIONS})
   target_link_options(${PROJECT_NAME}_static PRIVATE ${PARSER_LINK_OPTIONS})
   target_compile_definitions(${PROJECT_NAME}_static PUBLIC C_JSON_PARSER_STATIC_LIBRARY)
+  if(PARSER_ENABLE_STRICT_MODE)
+    target_compile_definitions(${PROJECT_NAME}_static PUBLIC C_JSON_PARSER_STRICT_MODE)
+  endif()
   set_target_properties(${PROJECT_NAME}_static PROPERTIES PUBLIC_HEADER "include/c_json_parser.h")
   install(TARGETS ${PROJECT_NAME}_static PUBLIC_HEADER DESTINATION include)
 endif() # PARSER_COMPILE_STATIC_LIBRARY

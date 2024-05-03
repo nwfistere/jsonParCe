@@ -46,6 +46,18 @@
       }
     },
     {
+      "name": "strict_mode",
+      "inherits": [
+        "base"
+      ],
+      "cacheVariables": {
+        "PARSER_ENABLE_STRICT_MODE": {
+          "type": "BOOL",
+          "value": "ON"
+        }
+      }
+    },
+    {
       "name": "release",
       "hidden": true,
       "inherits": [

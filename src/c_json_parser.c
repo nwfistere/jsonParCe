@@ -91,11 +91,14 @@
 #define QM '"'
 #define COMMA ','
 #define COLON ':'
+
 #define IS_NEWLINE(c) (c) == LF || (c) == CR
-#define IS_WHITESPACE(c) (c) == ' ' || (c) == '\t' || (c) == LF || (c) == CR
+#define IS_WHITESPACE(c) ((c) == ' ' || (c) == '\t' || (c) == LF || (c) == CR)
 #define IS_NUMERIC(c)                                                          \
-  ((c) >= '0' && (c) <= '9') || (c) == '-' || (c) == '.' || (c) == '+' ||      \
-      (c) == 'e' || (c) == 'E'
+  (((c) >= '0' && (c) <= '9') || (c) == '-' || (c) == '.' || (c) == '+' ||      \
+      (c) == 'e' || (c) == 'E')
+#define IS_BOOL(c) ((c) == 't' || (c) == 'f')
+#define IS_ARRAY_TOKEN(c) ((c) == QM || (c) == OB || (c) == OCB || IS_BOOL(c) || c == 'n' || IS_NUMERIC(c))
 #define UPDATE_STATE(V) p_state = (enum state)(V)
 #define REEXECUTE() goto reexecute
 
@@ -201,18 +204,43 @@
     parser->current_depth = parser->current_depth->parent;                     \
     free(old_depth);                                                           \
     if (parser->current_depth->type) {                                         \
-      UPDATE_STATE(s_parse_object);                                            \
+      UPDATE_STATE(s_parse_object_between_values);                                            \
     } else {                                                                   \
       /* since we're not calling the callback, we need to manually increment   \
        * the array_index. */                                                   \
       parser->array_index++;                                                   \
-      UPDATE_STATE(s_parse_array);                                             \
+      UPDATE_STATE(s_parse_array_between_values);                                             \
     }                                                                          \
   }
 
+#define VALIDATE_CH(EXPECTED) \
+if ((ch) != (EXPECTED)) { \
+  SET_ERRNO(ERRNO_INVALID_CHARACTER); \
+  goto error; \
+}
+
+#define DECLARE_BOM_CASES \
+case s_parse_BOM_EF: { \
+  VALIDATE_CH('\xEF') \
+  UPDATE_STATE(s_parse_BOM_BB); \
+  break; \
+} \
+case s_parse_BOM_BB: { \
+  VALIDATE_CH('\xBB') \
+  UPDATE_STATE(s_parse_BOM_BF); \
+  break; \
+} \
+case s_parse_BOM_BF: { \
+  VALIDATE_CH('\xBF') \
+  UPDATE_STATE(s_start); \
+  break; \
+}
+
 enum state {
+  s_done = C_JSON_PARSER_DONE_STATE,
   s_dead = 1,
   s_start,
+  s_parse_array_start,
   s_parse_array,
   s_parse_array_string,
   s_parse_array_numeric,
@@ -228,6 +256,7 @@ enum state {
   s_parse_array_find_object_end_string_end,
   s_parse_array_item_end,
   s_parse_array_find_object_end,
+  s_parse_object_start,
   s_parse_object,
   s_parse_object_parse_key,
   s_parse_object_parse_key_end,
@@ -247,7 +276,11 @@ enum state {
   s_parse_object_value_find_object_end,
   s_parse_object_value_find_object_end_string_end,
   s_parse_object_value_end,
-  s_done
+  s_parse_array_between_values,
+  s_parse_object_between_values,
+  s_parse_BOM_EF,
+  s_parse_BOM_BB,
+  s_parse_BOM_BF,
 };
 
 typedef struct json_parser_typed {
@@ -281,20 +314,47 @@ C_JSON_PARSER_API size_t json_parser_execute(json_parser *parser,
       goto error;
     }
     case s_start: {
-      if (IS_NEWLINE(ch)) {
+      if (IS_WHITESPACE(ch)) {
         break;
       }
       if (ch == OB) {
         // MARK_ARRAY_START(p);
-        UPDATE_STATE(s_parse_array);
+        UPDATE_STATE(s_parse_array_start);
       } else if (ch == OCB) {
         // MARK_OBJECT_START(p);
-        UPDATE_STATE(s_parse_object);
+        UPDATE_STATE(s_parse_object_start);
       }
+#ifdef C_JSON_PARSER_STRICT_MODE
+      else {
+        UPDATE_STATE(s_parse_BOM_EF);
+        REEXECUTE();
+      }
+#endif
       break;
     }
+    case s_parse_array_start: {
+      // Initial case because we normally don't accept a ']'
+      // in s_parse_array, but if the array is empty, it's allowed.
+      if (IS_WHITESPACE(ch)) {
+        break;
+      }
+      else if (ch == CB) {
+        UPDATE_STATE(s_done);
+        break;
+      } 
+#ifdef C_JSON_PARSER_STRICT_MODE
+      else if (!IS_ARRAY_TOKEN(ch)) {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+#endif
+      else {
+        UPDATE_STATE(s_parse_array);
+        REEXECUTE();
+      }
+    }
     case s_parse_array: {
-      if (IS_WHITESPACE(ch) || ch == COMMA) {
+      if (IS_WHITESPACE(ch)) {
         break;
       }
       MARK_ARRAY_ITEM_START(p);
@@ -304,8 +364,6 @@ C_JSON_PARSER_API size_t json_parser_execute(json_parser *parser,
       } else if (ch == OCB) {
         UPDATE_STATE(s_parse_array_find_object_end);
         REEXECUTE();
-      } else if (ch == CB) {
-        UPDATE_STATE(s_done);
       } else if (ch == QM) {
         UPDATE_STATE(s_parse_array_string);
       } else if (ch == 't') {
@@ -316,6 +374,10 @@ C_JSON_PARSER_API size_t json_parser_execute(json_parser *parser,
         UPDATE_STATE(s_parse_array_nu);
       } else if (IS_NUMERIC(ch)) {
         UPDATE_STATE(s_parse_array_numeric);
+      } else {
+        // TODO: Only do during strict?
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
       }
       break;
     }
@@ -340,7 +402,7 @@ C_JSON_PARSER_API size_t json_parser_execute(json_parser *parser,
     }
     case s_parse_array_item_end: {
       ARRAY_CALLBACK();
-      UPDATE_STATE(s_parse_array);
+      UPDATE_STATE(s_parse_array_between_values);
       break;
     }
     case s_parse_array_find_object_end: {
@@ -396,20 +458,38 @@ C_JSON_PARSER_API size_t json_parser_execute(json_parser *parser,
     case s_parse_array_numeric: {
       if (ch == COMMA || ch == CB || IS_WHITESPACE(ch)) {
         ARRAY_CALLBACK_NOADVANCE();
-        UPDATE_STATE(s_parse_array);
+        UPDATE_STATE(s_parse_array_between_values);
         REEXECUTE();
       }
+
+#ifdef C_JSON_PARSER_STRICT_MODE
+      if(!IS_NUMERIC(ch)) {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+#endif
       break;
     }
+    case s_parse_object_start: {
+      // Initial case because we normally don't accept a '}'
+      // in s_parse_array, but if the array is empty, it's allowed.
+      if (IS_WHITESPACE(ch)) {
+        break;
+      } else if (ch == CCB) {
+        UPDATE_STATE(s_done);
+        break;
+      } else {
+        UPDATE_STATE(s_parse_object);
+        REEXECUTE();
+      }
+    }
     case s_parse_object: {
-      if (IS_WHITESPACE(ch) || ch == COMMA) {
+      if (IS_WHITESPACE(ch)) {
         break;
       }
       if (ch == QM) {
         MARK_OBJECT_KEY_START(p + 1);
         UPDATE_STATE(s_parse_object_parse_key);
-      } else if (ch == CCB) {
-        UPDATE_STATE(s_done);
       } else {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
@@ -453,6 +533,9 @@ C_JSON_PARSER_API size_t json_parser_execute(json_parser *parser,
         UPDATE_STATE(s_parse_object_value_nu);
       } else if (IS_NUMERIC(ch)) {
         UPDATE_STATE(s_parse_object_value_numeric);
+      } else {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
       }
       break;
     }
@@ -460,9 +543,10 @@ C_JSON_PARSER_API size_t json_parser_execute(json_parser *parser,
       FIND_STRING_END_REEXECUTE(ch, s_parse_object_value_end);
     }
     case s_parse_object_value_numeric: {
-      if (ch == COMMA || ch == CCB || IS_WHITESPACE(ch)) {
+      if (ch == COMMA || ch == CCB) {
         OBJECT_CALLBACK_NOADVANCE()
-        UPDATE_STATE(s_parse_object);
+        UPDATE_STATE(s_parse_object_between_values);
+        REEXECUTE();
       }
       break;
     }
@@ -534,17 +618,61 @@ C_JSON_PARSER_API size_t json_parser_execute(json_parser *parser,
     }
     case s_parse_object_value_end: {
       OBJECT_CALLBACK()
-      UPDATE_STATE(s_parse_object);
+      UPDATE_STATE(s_parse_object_between_values);
+      break;
+    }
+    case s_parse_array_between_values: {
+      if (ch == COMMA) {
+        UPDATE_STATE(s_parse_array);
+      } else if (ch == CB) {
+        UPDATE_STATE(s_done);
+      }
+#ifdef C_JSON_PARSER_STRICT_MODE
+      else if (!IS_WHITESPACE(ch)) {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+#endif
+      break;
+    }
+    case s_parse_object_between_values: {
+      if (ch == COMMA) {
+        UPDATE_STATE(s_parse_object);
+      } else if (ch == CCB) {
+        UPDATE_STATE(s_done);
+      }
+#ifdef C_JSON_PARSER_STRICT_MODE
+      else if (!IS_WHITESPACE(ch)) {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+#endif
       break;
     }
     case s_done: {
-      if (p != (data + len - 1)) {
+      if (IS_WHITESPACE(ch)) {
+        // Get to the end.
+        break;
+      }
+      // TODO: This may give us a overflow error.
+      // But we need to verify no extra characters
+      // exist other than newline when strict mode is enabled.
+      if (p != (data + len)) {
+        // String is longer than expected, set error.
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
       }
       break;
     }
+    DECLARE_BOM_CASES
     }
+  }
+
+  if (p_state != s_done) {
+    // This may or may-not be an actual error.
+    // The user may be sending in a partial buffer.
+    SET_ERRNO(ERRNO_INCOMPLETE_DATA);
+    goto error;
   }
 
   RETURN(len);
@@ -574,30 +702,56 @@ json_deep_parser_execute(json_parser *parser, json_parser_callbacks *callbacks,
       goto error;
     }
     case s_start: {
-      if (IS_NEWLINE(ch)) {
+      if (IS_WHITESPACE(ch)) {
         break;
       }
       parser->current_depth = (json_depth *)malloc(sizeof(json_depth));
       json_depth_init(parser->current_depth);
       if (ch == OB) {
-        UPDATE_STATE(s_parse_array);
+        UPDATE_STATE(s_parse_array_start);
       } else if (ch == OCB) {
         parser->current_depth->type = 1;
-        UPDATE_STATE(s_parse_object);
+        UPDATE_STATE(s_parse_object_start);
       }
+#ifdef C_JSON_PARSER_STRICT_MODE
+      else {
+        UPDATE_STATE(s_parse_BOM_EF);
+        REEXECUTE();
+      }
+#endif
       break;
     }
+    case s_parse_array_start: {
+      // Initial case because we normally don't accept a ']'
+      // in s_parse_array, but if the array is empty, it's allowed.
+      if (IS_WHITESPACE(ch)) {
+        break;
+      }
+      else if (ch == CB) {
+        DECREASE_DEPTH();
+        // UPDATE_STATE(s_done);
+        break;
+      } 
+#ifdef C_JSON_PARSER_STRICT_MODE
+      else if (!IS_ARRAY_TOKEN(ch)) {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+#endif
+      else {
+        UPDATE_STATE(s_parse_array);
+        REEXECUTE();
+      }
+    }
     case s_parse_array: {
-      if (IS_WHITESPACE(ch) || ch == COMMA) {
+      if (IS_WHITESPACE(ch)) {
         break;
       }
       MARK_ARRAY_ITEM_START(p);
       if (ch == OB) {
-        INCREASE_DEPTH(s_parse_array, s_parse_array_find_array_end);
+        INCREASE_DEPTH(s_parse_array_start, s_parse_array_find_array_end);
       } else if (ch == OCB) {
-        INCREASE_DEPTH(s_parse_object, s_parse_array_find_object_end);
-      } else if (ch == CB) {
-        DECREASE_DEPTH();
+        INCREASE_DEPTH(s_parse_object_start, s_parse_array_find_object_end);
       } else if (ch == QM) {
         UPDATE_STATE(s_parse_array_string);
       } else if (ch == 't') {
@@ -608,6 +762,10 @@ json_deep_parser_execute(json_parser *parser, json_parser_callbacks *callbacks,
         UPDATE_STATE(s_parse_array_nu);
       } else if (IS_NUMERIC(ch)) {
         UPDATE_STATE(s_parse_array_numeric);
+      } else {
+        // TODO: Only do during strict?
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
       }
       break;
     }
@@ -632,7 +790,7 @@ json_deep_parser_execute(json_parser *parser, json_parser_callbacks *callbacks,
     }
     case s_parse_array_item_end: {
       ARRAY_CALLBACK();
-      UPDATE_STATE(s_parse_array);
+      UPDATE_STATE(s_parse_array_between_values);
       break;
     }
     case s_parse_array_find_object_end: {
@@ -688,10 +846,27 @@ json_deep_parser_execute(json_parser *parser, json_parser_callbacks *callbacks,
     case s_parse_array_numeric: {
       if (ch == COMMA || ch == CB || IS_WHITESPACE(ch)) {
         ARRAY_CALLBACK_NOADVANCE();
-        UPDATE_STATE(s_parse_array);
+        UPDATE_STATE(s_parse_array_between_values);
         REEXECUTE();
       }
+#ifdef C_JSON_PARSER_STRICT_MODE
+      if(!IS_NUMERIC(ch)) {
+        SET_ERRNO(ERRNO_INVALID_STATE);
+      }
+#endif
       break;
+    }
+    case s_parse_object_start: {
+      // Initial case because we normally don't accept a '}'
+      // in s_parse_array, but if the array is empty, it's allowed.
+      if (IS_WHITESPACE(ch)) {
+        break;
+      } else if (ch == CCB) {
+        DECREASE_DEPTH();
+        break;
+      }
+      UPDATE_STATE(s_parse_object);
+      REEXECUTE();
     }
     case s_parse_object: {
       if (IS_WHITESPACE(ch) || ch == COMMA) {
@@ -732,9 +907,9 @@ json_deep_parser_execute(json_parser *parser, json_parser_callbacks *callbacks,
       if (ch == QM) {
         UPDATE_STATE(s_parse_object_value_string);
       } else if (ch == OCB) {
-        INCREASE_DEPTH(s_parse_object, s_parse_object_value_find_object_end);
+        INCREASE_DEPTH(s_parse_object_start, s_parse_object_value_find_object_end);
       } else if (ch == OB) {
-        INCREASE_DEPTH(s_parse_array, s_parse_object_value_find_array_end);
+        INCREASE_DEPTH(s_parse_array_start, s_parse_object_value_find_array_end);
       } else if (ch == 't') {
         UPDATE_STATE(s_parse_object_value_tr);
       } else if (ch == 'f') {
@@ -750,9 +925,10 @@ json_deep_parser_execute(json_parser *parser, json_parser_callbacks *callbacks,
       FIND_STRING_END_REEXECUTE(ch, s_parse_object_value_end);
     }
     case s_parse_object_value_numeric: {
-      if (ch == COMMA || ch == CCB || IS_WHITESPACE(ch)) {
+      if (ch == COMMA || ch == CCB) {
         OBJECT_CALLBACK_NOADVANCE()
-        UPDATE_STATE(s_parse_object);
+        UPDATE_STATE(s_parse_object_between_values);
+        REEXECUTE();
       }
       break;
     }
@@ -824,7 +1000,35 @@ json_deep_parser_execute(json_parser *parser, json_parser_callbacks *callbacks,
     }
     case s_parse_object_value_end: {
       OBJECT_CALLBACK()
-      UPDATE_STATE(s_parse_object);
+      UPDATE_STATE(s_parse_object_between_values);
+      break;
+    }
+    case s_parse_array_between_values: {
+      if (ch == COMMA) {
+        UPDATE_STATE(s_parse_array);
+      } else if (ch == CB) {
+        DECREASE_DEPTH();
+      }
+#ifdef C_JSON_PARSER_STRICT_MODE
+      else if (!IS_WHITESPACE(ch)) {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+#endif
+      break;
+    }
+    case s_parse_object_between_values: {
+      if (ch == COMMA) {
+        UPDATE_STATE(s_parse_object);
+      } else if (ch == CCB) {
+        DECREASE_DEPTH();
+      }
+#ifdef C_JSON_PARSER_STRICT_MODE
+      else if (!IS_WHITESPACE(ch)) {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+#endif
       break;
     }
     case s_done: {
@@ -837,7 +1041,15 @@ json_deep_parser_execute(json_parser *parser, json_parser_callbacks *callbacks,
       }
       break;
     }
+    DECLARE_BOM_CASES
     }
+  }
+
+  if (p_state != s_done) {
+    // This may or may-not be an actual error.
+    // The user may be sending in a partial buffer.
+    SET_ERRNO(ERRNO_INCOMPLETE_DATA);
+    goto error;
   }
 
   RETURN(len);

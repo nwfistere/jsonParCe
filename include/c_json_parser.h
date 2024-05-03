@@ -8,6 +8,9 @@
 extern "C" {
 #endif
 
+// 255
+#define C_JSON_PARSER_DONE_STATE ((1 << 8) - 1)
+
 typedef enum JSON_TYPE {
   NONE = 0,
   OBJECT = 1 << 0,
@@ -40,7 +43,8 @@ typedef enum JSON_TYPE {
   XX(CALLBACK_FAILED, "callback failed (returned non-zero)")                   \
   XX(INVALID_CHARACTER, "invalid character found")                             \
   XX(FILE_OPEN_FAILURE, "failed to open file")                                 \
-  XX(INVALID_ENCODING, "invalid encoding")
+  XX(INVALID_ENCODING, "invalid encoding")\
+  XX(INCOMPLETE_DATA, "buffer ended before end of json")
 
 #define ERRNO_GEN(n, s) ERRNO_##n,
 enum json_errno { ERRNO_MAP(ERRNO_GEN) };

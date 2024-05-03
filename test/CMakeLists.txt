@@ -20,12 +20,20 @@ target_link_libraries(${PROJECT_NAME}_test_static PRIVATE json_parser_static)
 target_link_options(${PROJECT_NAME}_test_static PRIVATE ${TEST_PARSER_LINK_OPTIONS}) 
 target_compile_options(${PROJECT_NAME}_test_static PRIVATE ${TEST_PARSER_COMPILE_OPTIONS})
 
+if(PARSER_ENABLE_STRICT_MODE)
+  target_compile_definitions(${PROJECT_NAME}_test_static PUBLIC C_JSON_PARSER_STRICT_MODE)
+endif()
+
 add_executable(${PROJECT_NAME}_test_shared test.c)
 target_include_directories(${PROJECT_NAME}_test_shared PRIVATE ../include)
 target_link_libraries(${PROJECT_NAME}_test_shared PRIVATE json_parser_shared)
 target_link_options(${PROJECT_NAME}_test_shared PRIVATE ${TEST_PARSER_LINK_OPTIONS}) 
 target_compile_options(${PROJECT_NAME}_test_shared PRIVATE ${TEST_PARSER_COMPILE_OPTIONS})
 target_compile_definitions(${PROJECT_NAME}_test_shared PRIVATE LIBRARY_IMPORTS)
+
+if(PARSER_ENABLE_STRICT_MODE)
+  target_compile_definitions(${PROJECT_NAME}_test_shared PUBLIC C_JSON_PARSER_STRICT_MODE)
+endif()
 
 add_test(${PROJECT_NAME}_test_static ${PROJECT_NAME}_test_static)
 add_test(${PROJECT_NAME}_test_shared ${PROJECT_NAME}_test_shared)
