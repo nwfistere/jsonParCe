@@ -221,23 +221,6 @@
     goto error;                                                                \
   }
 
-#define DECLARE_BOM_CASES                                                      \
-  case s_parse_BOM_EF: {                                                       \
-    VALIDATE_CH('\xEF')                                                        \
-    UPDATE_STATE(s_parse_BOM_BB);                                              \
-    break;                                                                     \
-  }                                                                            \
-  case s_parse_BOM_BB: {                                                       \
-    VALIDATE_CH('\xBB')                                                        \
-    UPDATE_STATE(s_parse_BOM_BF);                                              \
-    break;                                                                     \
-  }                                                                            \
-  case s_parse_BOM_BF: {                                                       \
-    VALIDATE_CH('\xBF')                                                        \
-    UPDATE_STATE(s_start);                                                     \
-    break;                                                                     \
-  }
-
 enum state {
   s_done = C_JSON_PARSER_DONE_STATE,
   s_dead = 1,
@@ -665,7 +648,21 @@ C_JSON_PARSER_API size_t json_parser_execute(json_parser *parser,
       }
       break;
     }
-      DECLARE_BOM_CASES
+    case s_parse_BOM_EF: {
+      VALIDATE_CH('\xEF')
+      UPDATE_STATE(s_parse_BOM_BB);
+      break;
+    }
+    case s_parse_BOM_BB: {
+      VALIDATE_CH('\xBB')
+      UPDATE_STATE(s_parse_BOM_BF);
+      break;
+    }
+    case s_parse_BOM_BF: {
+      VALIDATE_CH('\xBF')
+      UPDATE_STATE(s_start);
+      break;
+    }
     }
   }
 
@@ -1043,7 +1040,21 @@ json_deep_parser_execute(json_parser *parser, json_parser_callbacks *callbacks,
       }
       break;
     }
-      DECLARE_BOM_CASES
+    case s_parse_BOM_EF: {
+      VALIDATE_CH('\xEF')
+      UPDATE_STATE(s_parse_BOM_BB);
+      break;
+    }
+    case s_parse_BOM_BB: {
+      VALIDATE_CH('\xBB')
+      UPDATE_STATE(s_parse_BOM_BF);
+      break;
+    }
+    case s_parse_BOM_BF: {
+      VALIDATE_CH('\xBF')
+      UPDATE_STATE(s_start);
+      break;
+    }
     }
   }
 
