@@ -101,15 +101,14 @@ typedef int (*json_object_cb)(json_parser *, const char *key, size_t key_len,
                               const char *value, size_t value_length);
 typedef int (*json_array_cb)(json_parser *, unsigned int index,
                              const char *value, size_t value_length);
+
 typedef int (*json_object_typed_cb)(json_parser *, const char *key,
                                     size_t key_len, JSON_TYPE type,
                                     const char *value, size_t value_length);
 typedef int (*json_array_typed_cb)(json_parser *, unsigned int index,
                                    JSON_TYPE type, const char *value,
                                    size_t value_length);
-typedef int (*json_cb)(json_parser *);
 
-// return 0 on success, 1 on failure.
 typedef struct json_parser_callbacks {
   json_object_cb on_object_key_value_pair;
   json_array_cb on_array_value;
