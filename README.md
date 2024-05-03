@@ -1,9 +1,9 @@
-# c-json-parser
+# jsonParCe
 
 ## Description
 A callback based json parser inspired by [nodejs/http-parser](https://github.com/nodejs/http-parser), built in C.
 
-c-json-parser sets itself apart from most JSON libraries by offering a flexible foundation for building advanced logic. It prioritizes extracting all values from the entire JSON input, rather than focusing on specific keys or indices. A prime use case for this library would involve deserializing an entire JSON object into a struct, where each or most JSON values map to a corresponding data member. The library employs callbacks to access values from the original JSON object, without performing any datatype manipulation. As a result, all values are represented as const char* references with length from the input JSON.
+jsonParCe sets itself apart from most JSON libraries by offering a flexible foundation for building advanced logic. It prioritizes extracting all values from the entire JSON input, rather than focusing on specific keys or indices. A prime use case for this library would involve deserializing an entire JSON object into a struct, where each or most JSON values map to a corresponding data member. The library employs callbacks to access values from the original JSON object, without performing any datatype manipulation. As a result, all values are represented as const char* references with length from the input JSON.
 
 ## Features
  - Supports UTF-8, UTF-16LE, UTF-16BE, UTF-32LE, and UTF-32BE input*
@@ -96,7 +96,7 @@ int main() {
 ```
 
 ## Building
-c-json-parser uses cmake to compile
+jsonParCe uses cmake to compile
 ### Running cmake
 ```bash
 # From the base of the source code
