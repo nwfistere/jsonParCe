@@ -5,6 +5,7 @@
 static int on_typed_object_value_cb(json_parser *parser, const char *key,
                                     size_t key_length, JSON_TYPE type,
                                     const char *value, size_t value_length) {
+  (void)parser;
   printf("Key: \"%.*s\" Value type: %d Value: <%.*s>\n", (int)key_length, key,
          type, (int)value_length, value);
   return 0;
@@ -13,7 +14,7 @@ static int on_typed_object_value_cb(json_parser *parser, const char *key,
 static int on_typed_array_value_cb(json_parser *parser, unsigned int index,
                                    JSON_TYPE type, const char *value,
                                    size_t value_length) {
-
+  (void)parser;
   printf("Index: [%d] Value type: %d Value: <%.*s>\n", index, type,
          (int)value_length, value);
   return 0;
@@ -28,7 +29,7 @@ static const char object_data[] =
     "[1,2,3,4,5], \"object\": { \"null\": null}, \"null\": null}";
 static const size_t object_data_len = sizeof(object_data) - 1;
 
-int main() {
+int main(void) {
   json_parser parser;
   json_parser_callbacks_typed tcbs = {.on_array_value = on_typed_array_value_cb,
                                       .on_object_key_value_pair =

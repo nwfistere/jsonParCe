@@ -38,6 +38,10 @@
         "PARSER_ENABLE_EXAMPLE_COMPILE": {
           "type": "BOOL",
           "value": "ON"
+        },
+        "PARSER_ENABLE_SANITIZERS": {
+          "type": "BOOL",
+          "value": "ON"
         }
       }
     },

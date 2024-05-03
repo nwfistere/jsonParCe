@@ -44,7 +44,7 @@ static const char object_data[] =
     "[1,2,3,4,5], \"object\": { \"null\": null}, \"null\": null}";
 static const size_t object_data_len = sizeof(object_data) - 1;
 
-int main() {
+int main(void) {
 
   json_parser parser;
   json_parser_callbacks_typed tcbs = {.on_array_value = on_typed_array_value_cb,

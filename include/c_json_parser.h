@@ -1,13 +1,12 @@
 #ifndef C_JSON_PARSER_H
 #define C_JSON_PARSER_H
 
-#include <uchar.h>
 #include <stddef.h>
+#include <uchar.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 
 typedef enum JSON_TYPE {
   NONE = 0,
@@ -20,15 +19,15 @@ typedef enum JSON_TYPE {
 } JSON_TYPE;
 
 #ifdef _WIN32
-  #ifdef C_JSON_PARSER_LIBRARY_EXPORTS
-    #define C_JSON_PARSER_API __declspec(dllexport)
-  #elif defined(C_JSON_PARSER_STATIC_LIBRARY)
-    #define C_JSON_PARSER_API
-  #else
-    #define C_JSON_PARSER_API __declspec(dllimport)
-  #endif
+#ifdef C_JSON_PARSER_LIBRARY_EXPORTS
+#define C_JSON_PARSER_API __declspec(dllexport)
+#elif defined(C_JSON_PARSER_STATIC_LIBRARY)
+#define C_JSON_PARSER_API
 #else
-  #define C_JSON_PARSER_API
+#define C_JSON_PARSER_API __declspec(dllimport)
+#endif
+#else
+#define C_JSON_PARSER_API
 #endif
 
 /*
@@ -120,24 +119,23 @@ typedef struct json_parser_callbacks_typed {
 C_JSON_PARSER_API void json_parser_init(json_parser *parser);
 
 C_JSON_PARSER_API size_t json_parser_execute(json_parser *parser,
-                                       json_parser_callbacks *callbacks,
-                                       const char *data, size_t len);
-
-C_JSON_PARSER_API size_t json_deep_parser_execute(json_parser *parser,
-                                            json_parser_callbacks *callbacks,
-                                            const char *data, size_t len);
-
-C_JSON_PARSER_API size_t json_parser_execute_utf16(json_parser *parser,
                                              json_parser_callbacks *callbacks,
-                                             const char16_t *data, size_t len);
+                                             const char *data, size_t len);
 
-C_JSON_PARSER_API size_t json_parser_execute_utf32(json_parser *parser,
-                                             json_parser_callbacks *callbacks,
-                                             const char32_t *data, size_t len);
+C_JSON_PARSER_API size_t
+json_deep_parser_execute(json_parser *parser, json_parser_callbacks *callbacks,
+                         const char *data, size_t len);
 
-C_JSON_PARSER_API size_t json_parser_execute_file(json_parser *parser,
-                                            json_parser_callbacks *callbacks,
-                                            const char *file);
+C_JSON_PARSER_API size_t
+json_parser_execute_utf16(json_parser *parser, json_parser_callbacks *callbacks,
+                          const char16_t *data, size_t len);
+
+C_JSON_PARSER_API size_t
+json_parser_execute_utf32(json_parser *parser, json_parser_callbacks *callbacks,
+                          const char32_t *data, size_t len);
+
+C_JSON_PARSER_API size_t json_parser_execute_file(
+    json_parser *parser, json_parser_callbacks *callbacks, const char *file);
 
 C_JSON_PARSER_API size_t json_parser_typed_execute(
     json_parser *parser, json_parser_callbacks_typed *callbacks,

@@ -48,22 +48,49 @@ endif() # CMAKE_C_COMPILER_ID
 
 
 if(PARSER_ENABLE_SANITIZERS)
-  list(APPEND PARSER_COMPILE_OPTIONS 
-    -fno-omit-frame-pointer
-    -fsanitize=address
-    -fsanitize=undefined
-    -fsanitize=float-cast-overflow
-    -fsanitize-address-use-after-scope
-    -fsanitize=integer
-    -01
-    -fno-sanitize-recover
-  )
+  if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
+  set (C_OPTIONS
+      /fsanitize=address
+      /fsanitize=fuzzer
+      /fsanitize-address-use-after-return
+      /fno-sanitize-address-vcasan-lib
+    )
+    list(APPEND PARSER_COMPILE_OPTIONS ${C_OPTIONS})
+    list(APPEND PARSER_LINK_OPTIONS ${C_OPTIONS})
+  elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
+    set(C_OPTIONS
+      -fno-omit-frame-pointer
+      -fsanitize=address
+      -fno-optimize-sibling-calls
+      -fsanitize=undefined
+      -fsanitize=float-cast-overflow
+      -fsanitize-address-use-after-scope
+      -fno-sanitize-recover
+      -fsanitize=leak
+    )
+    list(APPEND PARSER_COMPILE_OPTIONS ${C_OPTIONS})
+    list(APPEND PARSER_LINK_OPTIONS ${C_OPTIONS})
+  elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    set (C_OPTIONS 
+      -fsanitize=kernel-address
+      -fno-omit-frame-pointer
+      -fsanitize=address
+      -fsanitize=undefined
+      -fsanitize=float-cast-overflow
+      -fsanitize-address-use-after-scope
+      -fno-sanitize-recover
+      -O1
+    )
+    list(APPEND PARSER_COMPILE_OPTIONS C_OPTIONS)
+    list(APPEND PARSER_LINK_OPTIONS C_OPTIONS)
+  endif() # CMAKE_C_COMPILER_ID MATCHES
 endif() # PARSER_ENABLE_SANITIZERS
 
 if(PARSER_COMPILE_SHARED_LIBRARY)
   add_library(${PROJECT_NAME}_shared SHARED ${SRCS})
   target_include_directories(${PROJECT_NAME}_shared PRIVATE include)
   target_compile_options(${PROJECT_NAME}_shared PRIVATE ${PARSER_COMPILE_OPTIONS})
+  target_link_options(${PROJECT_NAME}_shared PRIVATE ${PARSER_LINK_OPTIONS})
   target_compile_definitions(${PROJECT_NAME}_shared PUBLIC C_JSON_PARSER_LIBRARY_EXPORTS)
   install(TARGETS ${PROJECT_NAME}_shared)
 endif() # PARSER_COMPILE_SHARED_LIBRARY
@@ -71,7 +98,8 @@ endif() # PARSER_COMPILE_SHARED_LIBRARY
 if(PARSER_COMPILE_STATIC_LIBRARY)
   add_library(${PROJECT_NAME}_static STATIC ${SRCS})
   target_include_directories(${PROJECT_NAME}_static PRIVATE include)
-  target_compile_options(${PROJECT_NAME}_static PRIVATE ${PARSER_COMPILE_OPTIONS} )
+  target_compile_options(${PROJECT_NAME}_static PRIVATE ${PARSER_COMPILE_OPTIONS})
+  target_link_options(${PROJECT_NAME}_static PRIVATE ${PARSER_LINK_OPTIONS})
   target_compile_definitions(${PROJECT_NAME}_static PUBLIC C_JSON_PARSER_STATIC_LIBRARY)
   set_target_properties(${PROJECT_NAME}_static PROPERTIES PUBLIC_HEADER "include/c_json_parser.h")
   install(TARGETS ${PROJECT_NAME}_static PUBLIC_HEADER DESTINATION include)

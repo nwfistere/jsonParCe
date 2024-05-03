@@ -192,6 +192,7 @@
 #define DECREASE_DEPTH()                                                       \
   if (parser->current_depth->depth == 0) {                                     \
     UPDATE_STATE(s_done);                                                      \
+    REEXECUTE();                                                               \
   } else {                                                                     \
     json_depth *old_depth = parser->current_depth;                             \
     parser->object_key_mark = old_depth->key;                                  \
@@ -264,14 +265,14 @@ C_JSON_PARSER_API void json_parser_init(json_parser *parser) {
 }
 
 C_JSON_PARSER_API size_t json_parser_execute(json_parser *parser,
-                                       json_parser_callbacks *callbacks,
-                                       const char *data, size_t len) {
+                                             json_parser_callbacks *callbacks,
+                                             const char *data, size_t len) {
   const char *p = data;
   enum state p_state = (enum state)parser->state;
   size_t nread = parser->nread;
   char ch;
 
-  for (p = data; p != data + len; p++) {
+  for (p = data; p < data + len; p++) {
     ch = *p;
   reexecute:
     switch (p_state) {
@@ -556,9 +557,9 @@ error:
   RETURN(p - data);
 }
 
-C_JSON_PARSER_API size_t json_deep_parser_execute(json_parser *parser,
-                                            json_parser_callbacks *callbacks,
-                                            const char *data, size_t len) {
+C_JSON_PARSER_API size_t
+json_deep_parser_execute(json_parser *parser, json_parser_callbacks *callbacks,
+                         const char *data, size_t len) {
   const char *p = data;
   enum state p_state = (enum state)parser->state;
   size_t nread = parser->nread;
@@ -827,6 +828,9 @@ C_JSON_PARSER_API size_t json_deep_parser_execute(json_parser *parser,
       break;
     }
     case s_done: {
+      // Only free current_depth once we're done. Incase they're passing in
+      // partial strings.
+      free(parser->current_depth);
       if (p != (data + len - 1)) {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
@@ -846,9 +850,9 @@ error:
   RETURN(p - data);
 }
 
-C_JSON_PARSER_API size_t json_parser_execute_utf16(json_parser *parser,
-                                             json_parser_callbacks *callbacks,
-                                             const char16_t *data, size_t len) {
+C_JSON_PARSER_API size_t
+json_parser_execute_utf16(json_parser *parser, json_parser_callbacks *callbacks,
+                          const char16_t *data, size_t len) {
   char *content = NULL;
   size_t content_len = 0;
 
@@ -865,9 +869,9 @@ C_JSON_PARSER_API size_t json_parser_execute_utf16(json_parser *parser,
   return retval;
 }
 
-C_JSON_PARSER_API size_t json_parser_execute_utf32(json_parser *parser,
-                                             json_parser_callbacks *callbacks,
-                                             const char32_t *data, size_t len) {
+C_JSON_PARSER_API size_t
+json_parser_execute_utf32(json_parser *parser, json_parser_callbacks *callbacks,
+                          const char32_t *data, size_t len) {
   char *content = NULL;
   size_t content_len = 0;
 
@@ -884,9 +888,8 @@ C_JSON_PARSER_API size_t json_parser_execute_utf32(json_parser *parser,
   return retval;
 }
 
-C_JSON_PARSER_API size_t json_parser_execute_file(json_parser *parser,
-                                            json_parser_callbacks *callbacks,
-                                            const char *file) {
+C_JSON_PARSER_API size_t json_parser_execute_file(
+    json_parser *parser, json_parser_callbacks *callbacks, const char *file) {
 
   int encoding = UNKNOWN;
   size_t file_size = 0;
