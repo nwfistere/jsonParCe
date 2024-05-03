@@ -261,21 +261,19 @@ int test_JSONTestSuite() {
     json_parser_init(&parser);
     size_t retval = json_parser_execute_file(&parser, &cbs, filepath);
 
-
     // y_* files should work
     // i_* files may work.
     // n_* files should cause failures.
     if (strncmp(filename, "y_", 2) == 0) {
-      static const char* ignore_files[] = {
-        "y_string_space.json",
-        "y_structure_lonely_false.json",
-        "y_structure_lonely_int.json",
-        "y_structure_lonely_negative_real.json",
-        "y_structure_lonely_null.json",
-        "y_structure_lonely_string.json",
-        "y_structure_lonely_true.json",
-        "y_structure_string_empty.json"
-      };
+      static const char *ignore_files[] = {
+          "y_string_space.json",
+          "y_structure_lonely_false.json",
+          "y_structure_lonely_int.json",
+          "y_structure_lonely_negative_real.json",
+          "y_structure_lonely_null.json",
+          "y_structure_lonely_string.json",
+          "y_structure_lonely_true.json",
+          "y_structure_string_empty.json"};
 
       int ignore = 0;
       for (int i = 0; i < (sizeof(ignore_files) / sizeof(*ignore_files)); ++i) {
@@ -284,7 +282,6 @@ int test_JSONTestSuite() {
           break;
         }
       }
-
 
       if (!ignore && (parser.err || (filesize != retval))) {
         fprintf(stderr, "\nERROR: \"%s\" FAILED\n", filepath);
@@ -302,7 +299,6 @@ int test_JSONTestSuite() {
         printf("\nINFO: \"%s\" COMPLETED successfully but ignored\n", filepath);
       }
 
-
     } else if (strncmp(filename, "i_", 2) == 0) {
       // Exclude the utf16 tests from the size check.
       if (parser.err ||
@@ -319,55 +315,54 @@ int test_JSONTestSuite() {
         }
       }
     } else if (strncmp(filename, "n_", 2) == 0) {
-      static const char* ignore_files[] = {
-        // currently not validating numerics
-        "n_array_just_minus.json", 
-        "n_number_++.json",
-        "n_number_+1.json",
-        "n_number_-01.json",
-        "n_number_-1.0..json",
-        "n_number_-2..json",
-        "n_number_.-1.json",
-        "n_number_.2e-3.json",
-        "n_number_0.1.2.json",
-        "n_number_0.3e+.json",
-        "n_number_0.3e.json",
-        "n_number_0.e1.json",
-        "n_number_0e+.json",
-        "n_number_0e.json",
-        "n_number_0_capital_E+.json",
-        "n_number_0_capital_E.json",
-        "n_number_1.0e+.json",
-        "n_number_1.0e-.json",
-        "n_number_1.0e.json",
-        "n_number_1eE2.json",
-        "n_number_2.e+3.json",
-        "n_number_2.e-3.json",
-        "n_number_2.e3.json",
-        "n_number_9.e+.json",
-        "n_number_expression.json",
-        "n_number_invalid+-.json",
-        "n_number_neg_int_starting_with_zero.json",
-        "n_number_neg_real_without_int_part.json",
-        "n_number_real_without_fractional_part.json",
-        "n_number_starting_with_dot.json",
-        "n_number_with_leading_zero.json",
-        "n_string_1_surrogate_then_escape_u.json",
-        "n_string_1_surrogate_then_escape_u1.json",
-        "n_string_1_surrogate_then_escape_u1x.json",
-        "n_string_escaped_ctrl_char_tab.json",
-        "n_string_escaped_emoji.json",
-        "n_string_escape_x.json",
-        "n_string_incomplete_escaped_character.json",
-        "n_string_incomplete_surrogate.json",
-        "n_string_incomplete_surrogate_escape_invalid.json",
-        "n_string_invalid-utf-8-in-escape.json",
-        "n_string_invalid_backslash_esc.json",
-        "n_string_invalid_unicode_escape.json",
-        "n_string_invalid_utf8_after_escape.json",
-        "n_string_unescaped_newline.json",
-        "n_string_unescaped_tab.json"
-      };
+      static const char *ignore_files[] = {
+          // currently not validating numerics
+          "n_array_just_minus.json",
+          "n_number_++.json",
+          "n_number_+1.json",
+          "n_number_-01.json",
+          "n_number_-1.0..json",
+          "n_number_-2..json",
+          "n_number_.-1.json",
+          "n_number_.2e-3.json",
+          "n_number_0.1.2.json",
+          "n_number_0.3e+.json",
+          "n_number_0.3e.json",
+          "n_number_0.e1.json",
+          "n_number_0e+.json",
+          "n_number_0e.json",
+          "n_number_0_capital_E+.json",
+          "n_number_0_capital_E.json",
+          "n_number_1.0e+.json",
+          "n_number_1.0e-.json",
+          "n_number_1.0e.json",
+          "n_number_1eE2.json",
+          "n_number_2.e+3.json",
+          "n_number_2.e-3.json",
+          "n_number_2.e3.json",
+          "n_number_9.e+.json",
+          "n_number_expression.json",
+          "n_number_invalid+-.json",
+          "n_number_neg_int_starting_with_zero.json",
+          "n_number_neg_real_without_int_part.json",
+          "n_number_real_without_fractional_part.json",
+          "n_number_starting_with_dot.json",
+          "n_number_with_leading_zero.json",
+          "n_string_1_surrogate_then_escape_u.json",
+          "n_string_1_surrogate_then_escape_u1.json",
+          "n_string_1_surrogate_then_escape_u1x.json",
+          "n_string_escaped_ctrl_char_tab.json",
+          "n_string_escaped_emoji.json",
+          "n_string_escape_x.json",
+          "n_string_incomplete_escaped_character.json",
+          "n_string_incomplete_surrogate.json",
+          "n_string_incomplete_surrogate_escape_invalid.json",
+          "n_string_invalid-utf-8-in-escape.json",
+          "n_string_invalid_backslash_esc.json",
+          "n_string_invalid_unicode_escape.json",
+          "n_string_invalid_utf8_after_escape.json",
+          "n_string_unescaped_newline.json",
+          "n_string_unescaped_tab.json"};
       int ignore = 0;
       for (int i = 0; i < (sizeof(ignore_files) / sizeof(*ignore_files)); ++i) {
         if (strcmp(ignore_files[i], filename) == 0) {
@@ -382,7 +377,9 @@ int test_JSONTestSuite() {
         fprintf(stderr, "\nERROR: \"%s\" SUCCESS\n", filepath);
         retval++;
 #else
-        printf("\nINFO: \"%s\" SUCCESS - (C_JSON_PARSER_STRICT_MODE is disabled)", filepath);
+        printf(
+            "\nINFO: \"%s\" SUCCESS - (C_JSON_PARSER_STRICT_MODE is disabled)",
+            filepath);
 #endif
       } else if (ignore && parser.err) {
         printf("\nINFO: \"%s\" FAILED successfully but ignored\n", filepath);

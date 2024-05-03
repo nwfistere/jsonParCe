@@ -43,7 +43,7 @@ typedef enum JSON_TYPE {
   XX(CALLBACK_FAILED, "callback failed (returned non-zero)")                   \
   XX(INVALID_CHARACTER, "invalid character found")                             \
   XX(FILE_OPEN_FAILURE, "failed to open file")                                 \
-  XX(INVALID_ENCODING, "invalid encoding")\
+  XX(INVALID_ENCODING, "invalid encoding")                                     \
   XX(INCOMPLETE_DATA, "buffer ended before end of json")
 
 #define ERRNO_GEN(n, s) ERRNO_##n,

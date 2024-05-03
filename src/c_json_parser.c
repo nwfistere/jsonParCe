@@ -95,10 +95,12 @@
 #define IS_NEWLINE(c) (c) == LF || (c) == CR
 #define IS_WHITESPACE(c) ((c) == ' ' || (c) == '\t' || (c) == LF || (c) == CR)
 #define IS_NUMERIC(c)                                                          \
-  (((c) >= '0' && (c) <= '9') || (c) == '-' || (c) == '.' || (c) == '+' ||      \
-      (c) == 'e' || (c) == 'E')
+  (((c) >= '0' && (c) <= '9') || (c) == '-' || (c) == '.' || (c) == '+' ||     \
+   (c) == 'e' || (c) == 'E')
 #define IS_BOOL(c) ((c) == 't' || (c) == 'f')
-#define IS_ARRAY_TOKEN(c) ((c) == QM || (c) == OB || (c) == OCB || IS_BOOL(c) || c == 'n' || IS_NUMERIC(c))
+#define IS_ARRAY_TOKEN(c)                                                      \
+  ((c) == QM || (c) == OB || (c) == OCB || IS_BOOL(c) || c == 'n' ||           \
+   IS_NUMERIC(c))
 #define UPDATE_STATE(V) p_state = (enum state)(V)
 #define REEXECUTE() goto reexecute
 
@@ -204,37 +206,37 @@
     parser->current_depth = parser->current_depth->parent;                     \
     free(old_depth);                                                           \
     if (parser->current_depth->type) {                                         \
-      UPDATE_STATE(s_parse_object_between_values);                                            \
+      UPDATE_STATE(s_parse_object_between_values);                             \
     } else {                                                                   \
       /* since we're not calling the callback, we need to manually increment   \
        * the array_index. */                                                   \
       parser->array_index++;                                                   \
-      UPDATE_STATE(s_parse_array_between_values);                                             \
+      UPDATE_STATE(s_parse_array_between_values);                              \
     }                                                                          \
   }
 
-#define VALIDATE_CH(EXPECTED) \
-if ((ch) != (EXPECTED)) { \
-  SET_ERRNO(ERRNO_INVALID_CHARACTER); \
-  goto error; \
-}
+#define VALIDATE_CH(EXPECTED)                                                  \
+  if ((ch) != (EXPECTED)) {                                                    \
+    SET_ERRNO(ERRNO_INVALID_CHARACTER);                                        \
+    goto error;                                                                \
+  }
 
-#define DECLARE_BOM_CASES \
-case s_parse_BOM_EF: { \
-  VALIDATE_CH('\xEF') \
-  UPDATE_STATE(s_parse_BOM_BB); \
-  break; \
-} \
-case s_parse_BOM_BB: { \
-  VALIDATE_CH('\xBB') \
-  UPDATE_STATE(s_parse_BOM_BF); \
-  break; \
-} \
-case s_parse_BOM_BF: { \
-  VALIDATE_CH('\xBF') \
-  UPDATE_STATE(s_start); \
-  break; \
-}
+#define DECLARE_BOM_CASES                                                      \
+  case s_parse_BOM_EF: {                                                       \
+    VALIDATE_CH('\xEF')                                                        \
+    UPDATE_STATE(s_parse_BOM_BB);                                              \
+    break;                                                                     \
+  }                                                                            \
+  case s_parse_BOM_BB: {                                                       \
+    VALIDATE_CH('\xBB')                                                        \
+    UPDATE_STATE(s_parse_BOM_BF);                                              \
+    break;                                                                     \
+  }                                                                            \
+  case s_parse_BOM_BF: {                                                       \
+    VALIDATE_CH('\xBF')                                                        \
+    UPDATE_STATE(s_start);                                                     \
+    break;                                                                     \
+  }
 
 enum state {
   s_done = C_JSON_PARSER_DONE_STATE,
@@ -337,11 +339,10 @@ C_JSON_PARSER_API size_t json_parser_execute(json_parser *parser,
       // in s_parse_array, but if the array is empty, it's allowed.
       if (IS_WHITESPACE(ch)) {
         break;
-      }
-      else if (ch == CB) {
+      } else if (ch == CB) {
         UPDATE_STATE(s_done);
         break;
-      } 
+      }
 #ifdef C_JSON_PARSER_STRICT_MODE
       else if (!IS_ARRAY_TOKEN(ch)) {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
@@ -463,7 +464,7 @@ C_JSON_PARSER_API size_t json_parser_execute(json_parser *parser,
       }
 
 #ifdef C_JSON_PARSER_STRICT_MODE
-      if(!IS_NUMERIC(ch)) {
+      if (!IS_NUMERIC(ch)) {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
       }
@@ -664,7 +665,7 @@ C_JSON_PARSER_API size_t json_parser_execute(json_parser *parser,
       }
       break;
     }
-    DECLARE_BOM_CASES
+      DECLARE_BOM_CASES
     }
   }
 
@@ -726,12 +727,11 @@ json_deep_parser_execute(json_parser *parser, json_parser_callbacks *callbacks,
       // in s_parse_array, but if the array is empty, it's allowed.
       if (IS_WHITESPACE(ch)) {
         break;
-      }
-      else if (ch == CB) {
+      } else if (ch == CB) {
         DECREASE_DEPTH();
         // UPDATE_STATE(s_done);
         break;
-      } 
+      }
 #ifdef C_JSON_PARSER_STRICT_MODE
       else if (!IS_ARRAY_TOKEN(ch)) {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
@@ -850,7 +850,7 @@ json_deep_parser_execute(json_parser *parser, json_parser_callbacks *callbacks,
         REEXECUTE();
       }
 #ifdef C_JSON_PARSER_STRICT_MODE
-      if(!IS_NUMERIC(ch)) {
+      if (!IS_NUMERIC(ch)) {
         SET_ERRNO(ERRNO_INVALID_STATE);
       }
 #endif
@@ -907,9 +907,11 @@ json_deep_parser_execute(json_parser *parser, json_parser_callbacks *callbacks,
       if (ch == QM) {
         UPDATE_STATE(s_parse_object_value_string);
       } else if (ch == OCB) {
-        INCREASE_DEPTH(s_parse_object_start, s_parse_object_value_find_object_end);
+        INCREASE_DEPTH(s_parse_object_start,
+                       s_parse_object_value_find_object_end);
       } else if (ch == OB) {
-        INCREASE_DEPTH(s_parse_array_start, s_parse_object_value_find_array_end);
+        INCREASE_DEPTH(s_parse_array_start,
+                       s_parse_object_value_find_array_end);
       } else if (ch == 't') {
         UPDATE_STATE(s_parse_object_value_tr);
       } else if (ch == 'f') {
@@ -1041,7 +1043,7 @@ json_deep_parser_execute(json_parser *parser, json_parser_callbacks *callbacks,
       }
       break;
     }
-    DECLARE_BOM_CASES
+      DECLARE_BOM_CASES
     }
   }
 
