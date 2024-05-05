@@ -44,7 +44,8 @@ typedef enum JSON_TYPE {
   XX(INVALID_CHARACTER, "invalid character found")                             \
   XX(FILE_OPEN_FAILURE, "failed to open file")                                 \
   XX(INVALID_ENCODING, "invalid encoding")                                     \
-  XX(INCOMPLETE_DATA, "buffer ended before end of json")
+  XX(INCOMPLETE_DATA, "buffer ended before end of json") \
+  XX(CALLBACK_REQUESTED_STOP, "stop requested by callback")
 
 #define ERRNO_GEN(n, s) ERRNO_##n,
 enum json_errno { ERRNO_MAP(ERRNO_GEN) };
@@ -97,15 +98,16 @@ typedef struct json_parser {
   const char *func;
 } json_parser;
 
-typedef int (*json_object_cb)(json_parser *, const char *key, size_t key_len,
-                              const char *value, size_t value_length);
-typedef int (*json_array_cb)(json_parser *, unsigned int index,
-                             const char *value, size_t value_length);
+// CALLBACKS
+// return 0 for success
+// return 1 for failure
+// return 2 for non-failure stop.
+// This will stop parsing, but json_parser_execute can be recalled and continued.
 
-typedef int (*json_object_typed_cb)(json_parser *, const char *key,
+typedef int (*json_object_cb)(json_parser *, const char *key,
                                     size_t key_len, JSON_TYPE type,
                                     const char *value, size_t value_length);
-typedef int (*json_array_typed_cb)(json_parser *, unsigned int index,
+typedef int (*json_array_cb)(json_parser *, unsigned int index,
                                    JSON_TYPE type, const char *value,
                                    size_t value_length);
 
@@ -113,11 +115,6 @@ typedef struct json_parser_callbacks {
   json_object_cb on_object_key_value_pair;
   json_array_cb on_array_value;
 } json_parser_callbacks;
-
-typedef struct json_parser_callbacks_typed {
-  json_object_typed_cb on_object_key_value_pair;
-  json_array_typed_cb on_array_value;
-} json_parser_callbacks_typed;
 
 C_JSON_PARSER_API void json_parser_init(json_parser *parser);
 
@@ -140,16 +137,16 @@ json_parser_execute_utf32(json_parser *parser, json_parser_callbacks *callbacks,
 C_JSON_PARSER_API size_t json_parser_execute_file(
     json_parser *parser, json_parser_callbacks *callbacks, const char *file);
 
-C_JSON_PARSER_API size_t json_parser_typed_execute(
-    json_parser *parser, json_parser_callbacks_typed *callbacks,
+C_JSON_PARSER_API size_t json_parser_execute(
+    json_parser *parser, json_parser_callbacks *callbacks,
     const char *data, size_t len);
 
-C_JSON_PARSER_API size_t json_deep_parser_typed_execute(
-    json_parser *parser, json_parser_callbacks_typed *callbacks,
+C_JSON_PARSER_API size_t json_deep_parser_execute(
+    json_parser *parser, json_parser_callbacks *callbacks,
     const char *data, size_t len);
 
-C_JSON_PARSER_API size_t json_parser_typed_execute_file(
-    json_parser *parser, json_parser_callbacks_typed *callbacks,
+C_JSON_PARSER_API size_t json_parser_execute_file(
+    json_parser *parser, json_parser_callbacks *callbacks,
     const char *file);
 
 #ifdef __cplusplus

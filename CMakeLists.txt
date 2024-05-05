@@ -61,15 +61,7 @@ endif() # CMAKE_C_COMPILER_ID
 
 
 if(PARSER_ENABLE_SANITIZERS)
-  if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
-    set (C_OPTIONS
-      /fsanitize=address
-      /fsanitize-address-use-after-return
-      /fno-sanitize-address-vcasan-lib
-    )
-    list(APPEND PARSER_COMPILE_OPTIONS ${C_OPTIONS})
-    list(APPEND PARSER_LINK_OPTIONS ${C_OPTIONS})
-  elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
+  if(CMAKE_C_COMPILER_ID MATCHES "GNU")
     set(C_OPTIONS
       -fno-omit-frame-pointer
       -fsanitize=address

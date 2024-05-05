@@ -11,7 +11,7 @@
 #include <windows.h>
 #endif
 
-static int on_array(json_parser *parser, unsigned int index, const char *value,
+static int on_array(json_parser *parser, unsigned int index, JSON_TYPE type, const char *value,
                     size_t value_length) {
   return 0;
 }

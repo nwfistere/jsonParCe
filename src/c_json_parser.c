@@ -37,12 +37,24 @@
   parser->object_key_len = (size_t)((P)-parser->object_key_mark)
 #define MARK_OBJECT_VALUE_START(P) parser->object_value_mark = (P)
 
+# define SET_TYPE_VALUE(TYPE, VALUE, LENGTH) \
+  GET_TYPE(VALUE[0], TYPE); \
+  if ((TYPE) == STRING) { \
+    /* Remove '"' from each side. */ \
+      (VALUE)++; \
+      (LENGTH) -= 2; \
+  }
+
 #define P_OBJECT_CALLBACK(VALUE_LENGTH)                                        \
   if (callbacks->on_object_key_value_pair) {                                   \
-    if (callbacks->on_object_key_value_pair(                                   \
-            parser, parser->object_key_mark, parser->object_key_len,           \
-            parser->object_value_mark, (size_t)(VALUE_LENGTH))) {              \
-      SET_ERRNO(ERRNO_CALLBACK_FAILED);                                        \
+    enum JSON_TYPE type = NONE; \
+    size_t l_value_length = (VALUE_LENGTH); \
+    SET_TYPE_VALUE(type, parser->object_value_mark, l_value_length) \
+    int callback_retval = 0; \
+    if ((callback_retval = callbacks->on_object_key_value_pair(                                   \
+            parser, parser->object_key_mark, parser->object_key_len, type,          \
+            parser->object_value_mark, l_value_length)) > 0) {              \
+      SET_ERRNO(callback_retval == 2 ? ERRNO_CALLBACK_REQUESTED_STOP : ERRNO_CALLBACK_FAILED);                                        \
       goto error;                                                              \
     }                                                                          \
   }
@@ -52,10 +64,14 @@
 
 #define P_ARRAY_CALLBACK(VALUE_LENGTH)                                         \
   if (callbacks->on_array_value) {                                             \
-    if (callbacks->on_array_value(parser, parser->array_index,                 \
+    enum JSON_TYPE type = NONE; \
+    size_t l_value_length = (VALUE_LENGTH); \
+    SET_TYPE_VALUE(type, parser->array_item_mark, l_value_length) \
+    int callback_retval = 0; \
+    if ((callback_retval = callbacks->on_array_value(parser, parser->array_index, type,            \
                                   parser->array_item_mark,                     \
-                                  (size_t)(VALUE_LENGTH))) {                   \
-      SET_ERRNO(ERRNO_CALLBACK_FAILED);                                        \
+                                  l_value_length)) > 0) {                   \
+      SET_ERRNO(callback_retval == 2 ? ERRNO_CALLBACK_REQUESTED_STOP : ERRNO_CALLBACK_FAILED);                                        \
       goto error;                                                              \
     }                                                                          \
   }                                                                            \
@@ -266,11 +282,6 @@ enum state {
   s_parse_BOM_BB,
   s_parse_BOM_BF,
 };
-
-typedef struct json_parser_typed {
-  json_parser *parser;
-  json_parser_callbacks_typed *callbacks;
-} json_parser_typed;
 
 static void json_depth_init(json_depth *depth) {
   memset(depth, 0, sizeof(*depth));
@@ -855,84 +866,5 @@ C_JSON_PARSER_API size_t json_parser_execute_file(
 
   free(content);
 
-  return retval;
-}
-
-static int json_parser_typed_execute_json_object_cb(json_parser *parser,
-                                                    const char *key,
-                                                    size_t key_len,
-                                                    const char *value,
-                                                    size_t value_length) {
-  json_parser_typed *_data = parser->data;
-  if (_data->callbacks->on_object_key_value_pair) {
-    const char ch = *value;
-    enum JSON_TYPE type;
-    GET_TYPE(ch, type)
-    if (type == STRING) {
-      // Remove '"' from each side.
-      value++;
-      value_length -= 2;
-    }
-    UPDATE_PARSER(_data->parser, parser);
-    return _data->callbacks->on_object_key_value_pair(
-        _data->parser, key, key_len, type, value, value_length);
-  }
-  return 0;
-}
-
-static int json_parser_typed_execute_json_array_cb(json_parser *parser,
-                                                   unsigned int index,
-                                                   const char *value,
-                                                   size_t value_length) {
-  json_parser_typed *_data = parser->data;
-  if (_data->callbacks->on_array_value) {
-    const char ch = *value;
-    enum JSON_TYPE type;
-    GET_TYPE(ch, type)
-    if (type == STRING) {
-      // Remove '"' from each side.
-      value++;
-      value_length -= 2;
-    }
-    UPDATE_PARSER(_data->parser, parser);
-    return _data->callbacks->on_array_value(_data->parser, index, type, value,
-                                            value_length);
-  }
-  return 0;
-}
-
-C_JSON_PARSER_API size_t json_parser_typed_execute(
-    json_parser *parser, json_parser_callbacks_typed *callbacks,
-    const char *data, size_t len) {
-  size_t retval;
-  json_parser_callbacks cbs = {
-      .on_object_key_value_pair = json_parser_typed_execute_json_object_cb,
-      .on_array_value = json_parser_typed_execute_json_array_cb};
-
-  json_parser_typed _data = {.parser = parser, .callbacks = callbacks};
-
-  json_parser _parser = *parser;
-  _parser.data = &_data;
-
-  retval = json_parser_execute(&_parser, &cbs, data, len);
-  UPDATE_PARSER(parser, &_parser);
-  return retval;
-}
-
-C_JSON_PARSER_API size_t json_deep_parser_typed_execute(
-    json_parser *parser, json_parser_callbacks_typed *callbacks,
-    const char *data, size_t len) {
-  size_t retval;
-  json_parser_callbacks cbs = {
-      .on_object_key_value_pair = json_parser_typed_execute_json_object_cb,
-      .on_array_value = json_parser_typed_execute_json_array_cb};
-
-  json_parser_typed _data = {.parser = parser, .callbacks = callbacks};
-
-  json_parser _parser = *parser;
-  _parser.data = &_data;
-
-  retval = json_deep_parser_execute(&_parser, &cbs, data, len);
-  UPDATE_PARSER(parser, &_parser);
   return retval;
 }

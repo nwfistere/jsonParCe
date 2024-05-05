@@ -16,17 +16,17 @@ jsonParCe sets itself apart from most JSON libraries by offering a flexible foun
 /* See full src in ./examples/shallow_parsing.c */
 int main() {
   json_parser parser;
-  json_parser_callbacks_typed tcbs = {
+  json_parser_callbacks cbs = {
     .on_array_value = on_typed_array_value_cb,
     .on_object_key_value_pair = on_typed_object_value_cb
   };
 
   json_parser_init(&parser);
-  size_t retval = json_parser_typed_execute(&parser, &tcbs, array_data, array_data_len);
+  size_t retval = json_parser_execute(&parser, &cbs, array_data, array_data_len);
   assert(retval == array_data_len);
 
   json_parser_init(&parser);
-  retval = json_parser_typed_execute(&parser, &tcbs, object_data, object_data_len);
+  retval = json_parser_execute(&parser, &cbs, object_data, object_data_len);
   assert(retval == object_data_len);
 
   return 0;
@@ -54,17 +54,17 @@ Key: "null" Value type: 6 Value: <null>
 int main() {
 
   json_parser parser;
-  json_parser_callbacks_typed tcbs = {
+  json_parser_callbacks cbs = {
     .on_array_value = on_typed_array_value_cb,
     .on_object_key_value_pair = on_typed_object_value_cb
   };
 
   json_parser_init(&parser);
-  size_t retval = json_deep_parser_typed_execute(&parser, &tcbs, array_data, array_data_len);
+  size_t retval = json_deep_parser_execute(&parser, &cbs, array_data, array_data_len);
   assert(retval == array_data_len);
 
   json_parser_init(&parser);
-  retval = json_deep_parser_typed_execute(&parser, &tcbs, object_data, object_data_len);
+  retval = json_deep_parser_execute(&parser, &cbs, object_data, object_data_len);
   assert(retval == object_data_len);
 
   return 0;

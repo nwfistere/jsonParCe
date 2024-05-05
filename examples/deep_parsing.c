@@ -47,14 +47,14 @@ static const size_t object_data_len = sizeof(object_data) - 1;
 int main(void) {
 
   json_parser parser;
-  json_parser_callbacks_typed tcbs = {.on_array_value = on_typed_array_value_cb,
+  json_parser_callbacks cbs = {.on_array_value = on_typed_array_value_cb,
                                       .on_object_key_value_pair =
                                           on_typed_object_value_cb};
 
   printf("%10s%10s%10s%10s%10s%10s\n", "Depth", "Parent", "Key", "Index",
          "Value", "Type");
   json_parser_init(&parser);
-  size_t retval = json_deep_parser_typed_execute(&parser, &tcbs, array_data,
+  size_t retval = json_deep_parser_execute(&parser, &cbs, array_data,
                                                  array_data_len);
   assert(retval == array_data_len);
 
@@ -63,7 +63,7 @@ int main(void) {
   printf("%10s%10s%10s%10s%10s%10s\n", "Depth", "Parent", "Key", "Index",
          "Value", "Type");
   json_parser_init(&parser);
-  retval = json_deep_parser_typed_execute(&parser, &tcbs, object_data,
+  retval = json_deep_parser_execute(&parser, &cbs, object_data,
                                           object_data_len);
   assert(retval == object_data_len);
 

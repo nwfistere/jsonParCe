@@ -17,60 +17,31 @@ static const size_t array_data_len = sizeof(array_data) - 1;
 
 static const char object_data[] =
     "{\"\\\\\":\"\", \"null\": null, \"true\": true, \"false\": false, "
+    "\"integer\": 1234,\n\t"
     "\"number\":-10.35E1234   , \"string\": \"str\\\\ing\", "
     "\"object\":{\"\\\\\":\"\\\\\"}, \"array\":[\"\\\\\"]}";
 static const size_t object_data_len = sizeof(object_data) - 1;
 
-int on_array_value_cb(json_parser *parser, unsigned int index,
-                      const char *value, size_t value_length) {
-  // #ifdef _WIN32
-  //   SetConsoleOutputCP(65001); // Set windows output to utf-8
-  // #endif
-  //   printf("[%d]:<%.*s>\n", index, value_length, value);
-  return 0;
-}
-
-int on_object_key_value_pair_cb(json_parser *parser, const char *key,
-                                size_t key_length, const char *value,
-                                size_t value_length) {
-  // #ifdef _WIN32
-  //   SetConsoleOutputCP(65001); // Set windows output to utf-8
-  // #endif
-  //   printf("\"%.*s\": <%.*s>\n", key_length, key, value_length, value);
-  return 0;
-}
-
-int on_typed_object_value_cb(json_parser *parser, const char *key,
+int on_object_value_cb(json_parser *parser, const char *key,
                              size_t key_length, JSON_TYPE type,
                              const char *value, size_t value_length) {
   return 0;
 }
 
-int on_typed_array_value_cb(json_parser *parser, unsigned int index,
+int on_array_value_cb(json_parser *parser, unsigned int index,
                             JSON_TYPE type, const char *value,
                             size_t value_length) {
   return 0;
 }
 
-int on_deep_array_value_cb(json_parser *parser, unsigned int index,
+int on_deep_array_value_cb(json_parser *parser, unsigned int index, JSON_TYPE type, 
                            const char *value, size_t value_length) {
-  // #ifdef _WIN32
-  //   SetConsoleOutputCP(65001); // Set windows output to utf-8
-  // #endif
-  //   printf("%s: %d [%d]:<%.*s>\n", "on_deep_array_value_cb",
-  //          parser->current_depth->depth, index, value_length, value);
   return 0;
 }
 
 int on_deep_object_key_value_pair_cb(json_parser *parser, const char *key,
-                                     size_t key_length, const char *value,
+                                     size_t key_length, JSON_TYPE type, const char *value,
                                      size_t value_length) {
-  // #ifdef _WIN32
-  //   SetConsoleOutputCP(65001); // Set windows output to utf-8
-  // #endif
-  //   printf("%s: %d \"%.*s\": <%.*s>\n", "on_deep_object_key_value_pair_cb",
-  //          parser->current_depth->depth, key_length, key, value_length,
-  //          value);
   return 0;
 }
 
@@ -101,18 +72,15 @@ static void print_retval(size_t retval, size_t expected, json_parser *parser) {
   assert(parser->state == C_JSON_PARSER_DONE_STATE);
 }
 
+int test_parsing();
 int test_JSONTestSuite();
 
 int main() {
   json_parser parser;
 
-  json_parser_callbacks_typed tcbs = {.on_array_value = on_typed_array_value_cb,
-                                      .on_object_key_value_pair =
-                                          on_typed_object_value_cb};
-
   json_parser_callbacks cbs = {.on_array_value = on_array_value_cb,
-                               .on_object_key_value_pair =
-                                   on_object_key_value_pair_cb};
+                                      .on_object_key_value_pair =
+                                          on_object_value_cb};
 
   json_parser_callbacks deep_cbs = {.on_array_value = on_deep_array_value_cb,
                                     .on_object_key_value_pair =
@@ -121,13 +89,13 @@ int main() {
   // Test array
   json_parser_init(&parser);
   size_t retval =
-      json_parser_typed_execute(&parser, &tcbs, array_data, array_data_len);
+      json_parser_execute(&parser, &cbs, array_data, array_data_len);
   print_retval(retval, array_data_len, &parser);
 
   // Test object
   json_parser_init(&parser);
   retval =
-      json_parser_typed_execute(&parser, &tcbs, object_data, object_data_len);
+      json_parser_execute(&parser, &cbs, object_data, object_data_len);
   print_retval(retval, object_data_len, &parser);
 
   // Test deep array
@@ -198,6 +166,60 @@ int main() {
 
   retval = test_JSONTestSuite();
   assert(retval == 0);
+
+  test_parsing();
+}
+
+// static int test_parsing_on_array_value_cb(json_parser *parser, unsigned int index, JSON_TYPE type, const char *value, size_t value_length) {
+
+// }
+
+static int test_parsing_on_object_value_cb(json_parser *parser, const char *key, size_t key_length, JSON_TYPE type, const char *value, size_t value_length) {
+  if (strncmp(key, "null", key_length) == 0) {
+    assert(type == NULL_TYPE);
+  } else if (strncmp(key, "true", key_length) == 0) {
+    assert(type == BOOL_TYPE);
+  } else if (strncmp(key, "false", key_length) == 0) {
+    assert(type == BOOL_TYPE);
+  } else if (strncmp(key, "integer", key_length) == 0) {
+    assert(type == NUMBER);
+  } else if (strncmp(key, "number", key_length) == 0) {
+    assert(type == NUMBER);
+  } else if (strncmp(key, "string", key_length) == 0) {
+    assert(type == STRING);
+  } else if (strncmp(key, "object", key_length) == 0) {
+    assert(type == OBJECT);
+  } else if (strncmp(key, "array", key_length) == 0) {
+    assert(type == ARRAY);
+  } else if (strncmp(key, "\\\\", key_length) == 0) {
+    assert(value_length == 0);
+  } else {
+    fprintf(stderr, "Not a known key \"%.*s\"", key_length, key);
+  }
+
+  return 0;
+}
+
+  // "{\"\\\\\":\"\", \"null\": null, \"true\": true, \"false\": false, "
+  // "\"integer\": 1234,\n\t"
+  // "\"number\":-10.35E1234   , \"string\": \"str\\\\ing\", "
+  // "\"object\":{\"\\\\\":\"\\\\\"}, \"array\":[\"\\\\\"]}";
+
+int test_parsing() {
+  json_parser_callbacks cbs = {
+    // .on_array_value = test_parsing_on_array_value_cb,
+    .on_object_key_value_pair = test_parsing_on_object_value_cb
+  };
+
+  json_parser parser;
+  json_parser_init(&parser);
+
+  size_t retval = json_parser_execute(&parser, &cbs, object_data, object_data_len);
+
+  assert(retval == object_data_len);
+  assert(parser.err == 0);
+
+   print_retval(retval, object_data_len, &parser);
 }
 
 int test_JSONTestSuite() {
