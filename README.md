@@ -34,19 +34,22 @@ int main() {
 ```
 ### Output
 ```bash
-Index: [0] Value type: 4 Value: <string>
-Index: [1] Value type: 6 Value: <null>
-Index: [2] Value type: 5 Value: <true>
-Index: [3] Value type: 5 Value: <false>
-Index: [4] Value type: 1 Value: <{ "object": true }>
-Index: [5] Value type: 2 Value: <["array"]>
-Index: [6] Value type: 3 Value: <1234>
-Key: "hello" Value type: 4 Value: <world!>
-Key: "bool1" Value type: 5 Value: <true>
-Key: "bool2" Value type: 5 Value: <false>
-Key: "array" Value type: 2 Value: <[1,2,3,4,5]>
-Key: "object" Value type: 1 Value: <{ "null": null}>
-Key: "null" Value type: 6 Value: <null>
+       Key     Index      Type               Value
+         -         0         8              string
+         -         1        32                null
+         -         2        16                true
+         -         3        16               false
+         -         4         1  { "object": true }
+         -         5         2           ["array"]
+         -         6         4                1234
+
+       Key     Index      Type               Value
+     hello         -         8              world!
+     bool1         -        16                true
+     bool2         -        16               false
+     array         -         2         [1,2,3,4,5]
+    object         -         1     { "null": null}
+      null         -        32                null
 ```
 ### Deep parsing
 ```C
@@ -73,26 +76,26 @@ int main() {
 
 ### Output
 ```bash
-     Depth    Parent       Key     Index     Value      Type
-         0    [ROOT]         -         0    string         4
-         0    [ROOT]         -         1      null         6
-         0    [ROOT]         -         2      true         5
-         0    [ROOT]         -         3     false         5
-         1         4    object         -      true         5
-         1         5         -         0     array         4
-         0    [ROOT]         -         6      1234         3
+     Depth    Parent       Key     Index      Type     Value
+         0    [ROOT]         -         0         8    string
+         0    [ROOT]         -         1        32      null
+         0    [ROOT]         -         2        16      true
+         0    [ROOT]         -         3        16     false
+         1         4    object         -        16      true
+         1         5         -         0         8     array
+         0    [ROOT]         -         6         4      1234
 
-     Depth    Parent       Key     Index     Value      Type
-         0    {ROOT}     hello         -    world!         4
-         0    {ROOT}     bool1         -      true         5
-         0    {ROOT}     bool2         -     false         5
-         1     array         -         0         1         3
-         1     array         -         1         2         3
-         1     array         -         2         3         3
-         1     array         -         3         4         3
-         1     array         -         4         5         3
-         1    object      null         -      null         6
-         0    {ROOT}      null         -      null         6
+     Depth    Parent       Key     Index      Type     Value
+         0    {ROOT}     hello         -         8    world!
+         0    {ROOT}     bool1         -        16      true
+         0    {ROOT}     bool2         -        16     false
+         1     array         -         0         4         1
+         1     array         -         1         4         2
+         1     array         -         2         4         3
+         1     array         -         3         4         4
+         1     array         -         4         4         5
+         1    object      null         -        32      null
+         0    {ROOT}      null         -        32      null
 ```
 
 ## Building

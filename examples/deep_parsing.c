@@ -14,8 +14,7 @@ static int on_typed_object_value_cb(json_parser *parser, const char *key,
   } else {
     printf("%10s", "{ROOT}");
   }
-  printf("%10.*s%10s%10.*s%10d\n", (int)key_length, key, "-", (int)value_length,
-         value, type);
+  printf("%10.*s%10s%10d%10.*s\n", (int)key_length, key, "-", type, (int)value_length, value);
   return 0;
 }
 
@@ -31,7 +30,7 @@ static int on_typed_array_value_cb(json_parser *parser, unsigned int index,
   } else {
     printf("%10s", "[ROOT]");
   }
-  printf("%10s%10d%10.*s%10d\n", "-", index, (int)value_length, value, type);
+  printf("%10s%10d%10d%10.*s\n", "-", index, type, (int)value_length, value);
   return 0;
 }
 
@@ -51,8 +50,8 @@ int main(void) {
                                .on_object_key_value_pair =
                                    on_typed_object_value_cb};
 
-  printf("%10s%10s%10s%10s%10s%10s\n", "Depth", "Parent", "Key", "Index",
-         "Value", "Type");
+  printf("%10s%10s%10s%10s%10s%10s\n", "Depth", "Parent", "Key", "Index", "Type",
+         "Value");
   json_parser_init(&parser);
   size_t retval =
       json_deep_parser_execute(&parser, &cbs, array_data, array_data_len);
@@ -60,8 +59,8 @@ int main(void) {
 
   printf("\n");
 
-  printf("%10s%10s%10s%10s%10s%10s\n", "Depth", "Parent", "Key", "Index",
-         "Value", "Type");
+  printf("%10s%10s%10s%10s%10s%10s\n", "Depth", "Parent", "Key", "Index", "Type",
+         "Value");
   json_parser_init(&parser);
   retval =
       json_deep_parser_execute(&parser, &cbs, object_data, object_data_len);

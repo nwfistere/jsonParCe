@@ -6,7 +6,7 @@ static int on_typed_object_value_cb(json_parser *parser, const char *key,
                                     size_t key_length, JSON_TYPE type,
                                     const char *value, size_t value_length) {
   (void)parser;
-  printf("Key: \"%.*s\" Value type: %d Value: <%.*s>\n", (int)key_length, key,
+  printf("%10.*s%10s%10d%20.*s\n", (int)key_length, key, "-",
          type, (int)value_length, value);
   return 0;
 }
@@ -15,7 +15,7 @@ static int on_typed_array_value_cb(json_parser *parser, unsigned int index,
                                    JSON_TYPE type, const char *value,
                                    size_t value_length) {
   (void)parser;
-  printf("Index: [%d] Value type: %d Value: <%.*s>\n", index, type,
+  printf("%10s%10d%10d%20.*s\n", "-", index, type,
          (int)value_length, value);
   return 0;
 }
@@ -35,13 +35,13 @@ int main(void) {
                                .on_object_key_value_pair =
                                    on_typed_object_value_cb};
 
+  printf("%10s%10s%10s%20s\n", "Key", "Index", "Type", "Value");
   json_parser_init(&parser);
   size_t retval =
       json_parser_execute(&parser, &cbs, array_data, array_data_len);
   assert(retval == array_data_len);
 
-  printf("\n");
-
+  printf("\n%10s%10s%10s%20s\n", "Key", "Index", "Type", "Value");
   json_parser_init(&parser);
   retval = json_parser_execute(&parser, &cbs, object_data, object_data_len);
   assert(retval == object_data_len);

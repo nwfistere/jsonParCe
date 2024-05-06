@@ -248,11 +248,14 @@ enum state {
   s_parse_array_numeric,
   s_parse_array_nu,
   s_parse_array_nul,
+  s_parse_array_null,
   s_parse_array_tr,
   s_parse_array_tru,
+  s_parse_array_true,
   s_parse_array_fa,
   s_parse_array_fal,
   s_parse_array_fals,
+  s_parse_array_false,
   s_parse_array_find_array_end,
   s_parse_array_find_array_end_string_end,
   s_parse_array_find_object_end_string_end,
@@ -268,11 +271,14 @@ enum state {
   s_parse_object_value_numeric,
   s_parse_object_value_nu,
   s_parse_object_value_nul,
+  s_parse_object_value_null,
   s_parse_object_value_tr,
   s_parse_object_value_tru,
+  s_parse_object_value_true,
   s_parse_object_value_fa,
   s_parse_object_value_fal,
   s_parse_object_value_fals,
+  s_parse_object_value_false,
   s_parse_object_value_find_array_end,
   s_parse_object_value_find_array_end_string_end,
   s_parse_object_value_find_object_end,
@@ -442,32 +448,107 @@ static size_t do_json_parser_execute(json_parser *parser,
       FIND_STRING_END_REEXECUTE(ch, s_parse_array_item_end);
     }
     case s_parse_array_nu: {
+#ifdef C_JSON_PARSER_STRICT_MODE
+      if (ch != 'u') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+#endif
       UPDATE_STATE(s_parse_array_nul);
       break;
     }
     case s_parse_array_nul: {
+#ifdef C_JSON_PARSER_STRICT_MODE
+      if (ch != 'l') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+      UPDATE_STATE(s_parse_array_null);
+      break;
+#else
       UPDATE_STATE(s_parse_array_item_end);
       break;
+#endif
+    }
+    case s_parse_array_null: {
+      // Only ran on C_JSON_PARSER_STRICT_MODE
+      if (ch != 'l') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+      UPDATE_STATE(s_parse_array_item_end);
+      REEXECUTE();
     }
     case s_parse_array_tr: {
+#ifdef C_JSON_PARSER_STRICT_MODE
+      if (ch != 'r') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+#endif
       UPDATE_STATE(s_parse_array_tru);
       break;
     }
     case s_parse_array_tru: {
+#ifdef C_JSON_PARSER_STRICT_MODE
+      if (ch != 'u') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+      UPDATE_STATE(s_parse_array_true);
+      break;
+#else
       UPDATE_STATE(s_parse_array_item_end);
       break;
+#endif
+    }
+    case s_parse_array_true: {
+      // Only ran on C_JSON_PARSER_STRICT_MODE
+      if (ch != 'e') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+      UPDATE_STATE(s_parse_array_item_end);
+      REEXECUTE();
     }
     case s_parse_array_fa: {
+#ifdef C_JSON_PARSER_STRICT_MODE
+      if (ch != 'a') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+#endif
       UPDATE_STATE(s_parse_array_fal);
       break;
     }
     case s_parse_array_fal: {
+#ifdef C_JSON_PARSER_STRICT_MODE
+      if (ch != 'l') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+#endif
       UPDATE_STATE(s_parse_array_fals);
       break;
     }
     case s_parse_array_fals: {
+#ifdef C_JSON_PARSER_STRICT_MODE
+      if (ch != 's') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+#endif
       UPDATE_STATE(s_parse_array_item_end);
       break;
+    }
+    case s_parse_array_false: {
+      // Only ran on C_JSON_PARSER_STRICT_MODE
+      if (ch != 'e') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+      UPDATE_STATE(s_parse_array_item_end);
+      REEXECUTE();
     }
     case s_parse_array_numeric: {
       if (ch == COMMA || ch == CB || IS_WHITESPACE(ch)) {
@@ -579,32 +660,111 @@ static size_t do_json_parser_execute(json_parser *parser,
       break;
     }
     case s_parse_object_value_nu: {
+#ifdef C_JSON_PARSER_STRICT_MODE
+      if (ch != 'u') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+#endif
       UPDATE_STATE(s_parse_object_value_nul);
       break;
     }
     case s_parse_object_value_nul: {
+#ifdef C_JSON_PARSER_STRICT_MODE
+      if (ch != 'l') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+      UPDATE_STATE(s_parse_object_value_null);
+      break;
+#else
       UPDATE_STATE(s_parse_object_value_end);
       break;
+#endif
+    }
+    case s_parse_object_value_null: {
+#ifdef C_JSON_PARSER_STRICT_MODE
+      if (ch != 'l') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+#endif
+      UPDATE_STATE(s_parse_object_value_end);
+      REEXECUTE();
     }
     case s_parse_object_value_tr: {
+#ifdef C_JSON_PARSER_STRICT_MODE
+      if (ch != 'r') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+#endif
       UPDATE_STATE(s_parse_object_value_tru);
       break;
     }
     case s_parse_object_value_tru: {
+#ifdef C_JSON_PARSER_STRICT_MODE
+      if (ch != 'u') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+      UPDATE_STATE(s_parse_object_value_true);
+      break;
+#else
       UPDATE_STATE(s_parse_object_value_end);
       break;
+#endif
+    }
+    case s_parse_object_value_true: {
+      // Only ran on C_JSON_PARSER_STRICT_MODE
+      if (ch != 'e') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+      UPDATE_STATE(s_parse_object_value_end);
+      REEXECUTE();
     }
     case s_parse_object_value_fa: {
+#ifdef C_JSON_PARSER_STRICT_MODE
+      if (ch != 'a') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+#endif
       UPDATE_STATE(s_parse_object_value_fal);
       break;
     }
     case s_parse_object_value_fal: {
+#ifdef C_JSON_PARSER_STRICT_MODE
+      if (ch != 'l') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+#endif
       UPDATE_STATE(s_parse_object_value_fals);
       break;
     }
     case s_parse_object_value_fals: {
+#ifdef C_JSON_PARSER_STRICT_MODE
+      if (ch != 's') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+      UPDATE_STATE(s_parse_object_value_false);
+      break;
+#else
       UPDATE_STATE(s_parse_object_value_end);
       break;
+#endif
+    }
+    case s_parse_object_value_false: {
+      // Only ran on C_JSON_PARSER_STRICT_MODE
+      if (ch != 'e') {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+      UPDATE_STATE(s_parse_object_value_end);
+      REEXECUTE();
     }
     case s_parse_object_value_find_array_end: {
       if (ch == OB) {
