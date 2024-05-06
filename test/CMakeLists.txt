@@ -35,17 +35,23 @@ if(PARSER_ENABLE_STRICT_MODE)
   target_compile_definitions(${PROJECT_NAME}_test_shared PUBLIC C_JSON_PARSER_STRICT_MODE)
 endif()
 
-add_test(${PROJECT_NAME}_test_static ${PROJECT_NAME}_test_static)
-add_test(${PROJECT_NAME}_test_shared ${PROJECT_NAME}_test_shared)
+if(CMAKE_CONFIGURATION_TYPES)
+  set(TEST_WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/test/$<CONFIG>)
+else()
+  set(TEST_WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/test)
+endif()
+
+add_test(NAME ${PROJECT_NAME}_test_static COMMAND ${PROJECT_NAME}_test_static WORKING_DIRECTORY ${TEST_WORKING_DIRECTORY})
+add_test(NAME ${PROJECT_NAME}_test_shared COMMAND ${PROJECT_NAME}_test_shared WORKING_DIRECTORY ${TEST_WORKING_DIRECTORY})
 # Add shared library to path for test environment
 
 # Copy the encoding files over to the build directory.
 if(CMAKE_CONFIGURATION_TYPES)
-  set_tests_properties(${PROJECT_NAME}_test_shared PROPERTIES ENVIRONMENT_MODIFICATION PATH=path_list_append:${CMAKE_BINARY_DIR}/test/$<CONFIG>)
+  set_tests_properties(${PROJECT_NAME}_test_shared PROPERTIES ENVIRONMENT_MODIFICATION PATH=path_list_append:${CMAKE_BINARY_DIR}/$<CONFIG>)
   set(OUTPUT_ENCODING_DIRECTORY "${CMAKE_BINARY_DIR}/test/$<CONFIG>/encodings" CACHE STRING "The output directory for the encoding files")
   set(OUTPUT_JSON_TESTING_DIRECTORY "${CMAKE_BINARY_DIR}/test/$<CONFIG>/test_parsing" CACHE STRING "The output directory for the test json files")
 else()
-  set_tests_properties(${PROJECT_NAME}_test_shared PROPERTIES ENVIRONMENT_MODIFICATION PATH=path_list_append:${CMAKE_BINARY_DIR}/test)
+  set_tests_properties(${PROJECT_NAME}_test_shared PROPERTIES ENVIRONMENT_MODIFICATION PATH=path_list_append:${CMAKE_BINARY_DIR})
   set(OUTPUT_ENCODING_DIRECTORY "${CMAKE_BINARY_DIR}/test/encodings"  CACHE STRING "The output directory for the encoding files")
   set(OUTPUT_JSON_TESTING_DIRECTORY "${CMAKE_BINARY_DIR}/test/test_parsing" CACHE STRING "The output directory for the test json files")
 endif()
