@@ -37,24 +37,25 @@
   parser->object_key_len = (size_t)((P)-parser->object_key_mark)
 #define MARK_OBJECT_VALUE_START(P) parser->object_value_mark = (P)
 
-# define SET_TYPE_VALUE(TYPE, VALUE, LENGTH) \
-  GET_TYPE(VALUE[0], TYPE); \
-  if ((TYPE) == STRING) { \
-    /* Remove '"' from each side. */ \
-      (VALUE)++; \
-      (LENGTH) -= 2; \
+#define SET_TYPE_VALUE(TYPE, VALUE, LENGTH)                                    \
+  GET_TYPE(VALUE[0], TYPE);                                                    \
+  if ((TYPE) == STRING) {                                                      \
+    /* Remove '"' from each side. */                                           \
+    (VALUE)++;                                                                 \
+    (LENGTH) -= 2;                                                             \
   }
 
 #define P_OBJECT_CALLBACK(VALUE_LENGTH)                                        \
   if (callbacks->on_object_key_value_pair) {                                   \
-    enum JSON_TYPE type = NONE; \
-    size_t l_value_length = (VALUE_LENGTH); \
-    SET_TYPE_VALUE(type, parser->object_value_mark, l_value_length) \
-    int callback_retval = 0; \
-    if ((callback_retval = callbacks->on_object_key_value_pair(                                   \
-            parser, parser->object_key_mark, parser->object_key_len, type,          \
-            parser->object_value_mark, l_value_length)) > 0) {              \
-      SET_ERRNO(callback_retval == 2 ? ERRNO_CALLBACK_REQUESTED_STOP : ERRNO_CALLBACK_FAILED);                                        \
+    enum JSON_TYPE type = NONE;                                                \
+    size_t l_value_length = (VALUE_LENGTH);                                    \
+    SET_TYPE_VALUE(type, parser->object_value_mark, l_value_length)            \
+    int callback_retval = 0;                                                   \
+    if ((callback_retval = callbacks->on_object_key_value_pair(                \
+             parser, parser->object_key_mark, parser->object_key_len, type,    \
+             parser->object_value_mark, l_value_length)) > 0) {                \
+      SET_ERRNO(callback_retval == 2 ? ERRNO_CALLBACK_REQUESTED_STOP           \
+                                     : ERRNO_CALLBACK_FAILED);                 \
       goto error;                                                              \
     }                                                                          \
   }
@@ -64,14 +65,15 @@
 
 #define P_ARRAY_CALLBACK(VALUE_LENGTH)                                         \
   if (callbacks->on_array_value) {                                             \
-    enum JSON_TYPE type = NONE; \
-    size_t l_value_length = (VALUE_LENGTH); \
-    SET_TYPE_VALUE(type, parser->array_item_mark, l_value_length) \
-    int callback_retval = 0; \
-    if ((callback_retval = callbacks->on_array_value(parser, parser->array_index, type,            \
-                                  parser->array_item_mark,                     \
-                                  l_value_length)) > 0) {                   \
-      SET_ERRNO(callback_retval == 2 ? ERRNO_CALLBACK_REQUESTED_STOP : ERRNO_CALLBACK_FAILED);                                        \
+    enum JSON_TYPE type = NONE;                                                \
+    size_t l_value_length = (VALUE_LENGTH);                                    \
+    SET_TYPE_VALUE(type, parser->array_item_mark, l_value_length)              \
+    int callback_retval = 0;                                                   \
+    if ((callback_retval = callbacks->on_array_value(                          \
+             parser, parser->array_index, type, parser->array_item_mark,       \
+             l_value_length)) > 0) {                                           \
+      SET_ERRNO(callback_retval == 2 ? ERRNO_CALLBACK_REQUESTED_STOP           \
+                                     : ERRNO_CALLBACK_FAILED);                 \
       goto error;                                                              \
     }                                                                          \
   }                                                                            \

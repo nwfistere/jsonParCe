@@ -22,26 +22,25 @@ static const char object_data[] =
     "\"object\":{\"\\\\\":\"\\\\\"}, \"array\":[\"\\\\\"]}";
 static const size_t object_data_len = sizeof(object_data) - 1;
 
-int on_object_value_cb(json_parser *parser, const char *key,
-                             size_t key_length, JSON_TYPE type,
-                             const char *value, size_t value_length) {
+int on_object_value_cb(json_parser *parser, const char *key, size_t key_length,
+                       JSON_TYPE type, const char *value, size_t value_length) {
   return 0;
 }
 
-int on_array_value_cb(json_parser *parser, unsigned int index,
-                            JSON_TYPE type, const char *value,
-                            size_t value_length) {
+int on_array_value_cb(json_parser *parser, unsigned int index, JSON_TYPE type,
+                      const char *value, size_t value_length) {
   return 0;
 }
 
-int on_deep_array_value_cb(json_parser *parser, unsigned int index, JSON_TYPE type, 
-                           const char *value, size_t value_length) {
+int on_deep_array_value_cb(json_parser *parser, unsigned int index,
+                           JSON_TYPE type, const char *value,
+                           size_t value_length) {
   return 0;
 }
 
 int on_deep_object_key_value_pair_cb(json_parser *parser, const char *key,
-                                     size_t key_length, JSON_TYPE type, const char *value,
-                                     size_t value_length) {
+                                     size_t key_length, JSON_TYPE type,
+                                     const char *value, size_t value_length) {
   return 0;
 }
 
@@ -79,8 +78,7 @@ int main() {
   json_parser parser;
 
   json_parser_callbacks cbs = {.on_array_value = on_array_value_cb,
-                                      .on_object_key_value_pair =
-                                          on_object_value_cb};
+                               .on_object_key_value_pair = on_object_value_cb};
 
   json_parser_callbacks deep_cbs = {.on_array_value = on_deep_array_value_cb,
                                     .on_object_key_value_pair =
@@ -94,8 +92,7 @@ int main() {
 
   // Test object
   json_parser_init(&parser);
-  retval =
-      json_parser_execute(&parser, &cbs, object_data, object_data_len);
+  retval = json_parser_execute(&parser, &cbs, object_data, object_data_len);
   print_retval(retval, object_data_len, &parser);
 
   // Test deep array
@@ -170,11 +167,57 @@ int main() {
   test_parsing();
 }
 
-// static int test_parsing_on_array_value_cb(json_parser *parser, unsigned int index, JSON_TYPE type, const char *value, size_t value_length) {
+static int test_parsing_on_array_value_cb(json_parser *parser,
+                                          unsigned int index, JSON_TYPE type,
+                                          const char *value,
+                                          size_t value_length) {
+  switch (index) {
+  case 0: {
+    assert(type == NULL_TYPE);
+    assert(strncmp(value, "null", value_length) == 0);
+    break;
+  }
+  case 1: {
+    assert(type == BOOL_TYPE);
+    assert(strncmp(value, "true", value_length) == 0);
+    break;
+  }
+  case 2: {
+    assert(type == BOOL_TYPE);
+    assert(strncmp(value, "false", value_length) == 0);
+    break;
+  }
+  case 3: {
+    assert(type == STRING);
+    assert(strncmp(value, "str\\\\ing", value_length) == 0);
+    break;
+  }
+  case 4: {
+    assert(type == OBJECT);
+    break;
+  }
+  case 5: {
+    assert(type == ARRAY);
+    break;
+  }
+  case 6: {
+    assert(type == NUMBER);
+    assert(strncmp(value, "-1.23e15", value_length) == 0);
+    break;
+  }
+  default: {
+    fprintf(stderr, "Not a known index \"%d\"", index);
+    assert(0);
+  }
+  }
 
-// }
+  return 0;
+}
 
-static int test_parsing_on_object_value_cb(json_parser *parser, const char *key, size_t key_length, JSON_TYPE type, const char *value, size_t value_length) {
+static int test_parsing_on_object_value_cb(json_parser *parser, const char *key,
+                                           size_t key_length, JSON_TYPE type,
+                                           const char *value,
+                                           size_t value_length) {
   if (strncmp(key, "null", key_length) == 0) {
     assert(type == NULL_TYPE);
   } else if (strncmp(key, "true", key_length) == 0) {
@@ -195,31 +238,27 @@ static int test_parsing_on_object_value_cb(json_parser *parser, const char *key,
     assert(value_length == 0);
   } else {
     fprintf(stderr, "Not a known key \"%.*s\"", key_length, key);
+    assert(0);
   }
 
   return 0;
 }
 
-  // "{\"\\\\\":\"\", \"null\": null, \"true\": true, \"false\": false, "
-  // "\"integer\": 1234,\n\t"
-  // "\"number\":-10.35E1234   , \"string\": \"str\\\\ing\", "
-  // "\"object\":{\"\\\\\":\"\\\\\"}, \"array\":[\"\\\\\"]}";
-
 int test_parsing() {
-  json_parser_callbacks cbs = {
-    // .on_array_value = test_parsing_on_array_value_cb,
-    .on_object_key_value_pair = test_parsing_on_object_value_cb
-  };
+  json_parser_callbacks cbs = {.on_array_value = test_parsing_on_array_value_cb,
+                               .on_object_key_value_pair =
+                                   test_parsing_on_object_value_cb};
 
   json_parser parser;
   json_parser_init(&parser);
 
-  size_t retval = json_parser_execute(&parser, &cbs, object_data, object_data_len);
+  size_t retval =
+      json_parser_execute(&parser, &cbs, object_data, object_data_len);
 
   assert(retval == object_data_len);
   assert(parser.err == 0);
 
-   print_retval(retval, object_data_len, &parser);
+  print_retval(retval, object_data_len, &parser);
 }
 
 int test_JSONTestSuite() {
