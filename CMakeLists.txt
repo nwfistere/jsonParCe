@@ -33,7 +33,8 @@ if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
   # MSVC Warning 4996 warns about using strdup
   # MSVC Warning 4127 warns about constant conditional statements.
   # MSVC Warning 4333 warns about shifting too far
-  set(PARSER_COMPILE_OPTIONS /nologo /Wall /WX /wd4820 /wd5045 /wd4996 /wd4127 /wd4333)
+  # MSVC Warning 4711 warns about auto-inline of non-inlined functions during optimization.
+  set(PARSER_COMPILE_OPTIONS /nologo /Wall /WX /wd4820 /wd5045 /wd4996 /wd4127 /wd4333 /wd4711)
   list(APPEND PARSER_COMPILE_DEFINITIONS /D_CRT_SECURE_NO_WARNINGS)
   if(CMAKE_BUILD_TYPE STREQUAL "Release")
     list(APPEND PARSER_COMPILE_OPTIONS /Ox)

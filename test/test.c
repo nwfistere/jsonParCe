@@ -237,7 +237,7 @@ static int test_parsing_on_object_value_cb(json_parser *parser, const char *key,
   } else if (strncmp(key, "\\\\", key_length) == 0) {
     assert(value_length == 0);
   } else {
-    fprintf(stderr, "Not a known key \"%.*s\"", key_length, key);
+    fprintf(stderr, "Not a known key \"%.*s\"", (int)key_length, key);
     assert(0);
   }
 
@@ -259,6 +259,8 @@ int test_parsing() {
   assert(parser.err == 0);
 
   print_retval(retval, object_data_len, &parser);
+
+  return 0;
 }
 
 int test_JSONTestSuite() {

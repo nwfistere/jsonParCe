@@ -50,6 +50,7 @@
       "inherits": [
         "base"
       ],
+      "hidden": true,
       "cacheVariables": {
         "PARSER_ENABLE_STRICT_MODE": {
           "type": "BOOL",

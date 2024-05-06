@@ -40,11 +40,13 @@ int main(void) {
   size_t retval =
       json_parser_execute(&parser, &cbs, array_data, array_data_len);
   assert(retval == array_data_len);
+  (void) retval;
 
   printf("\n%10s%10s%10s%20s\n", "Key", "Index", "Type", "Value");
   json_parser_init(&parser);
   retval = json_parser_execute(&parser, &cbs, object_data, object_data_len);
   assert(retval == object_data_len);
+  (void) retval;
 
   return 0;
 }
