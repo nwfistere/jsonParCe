@@ -95,6 +95,15 @@ typedef struct json_parce {
       max_depth; // Max depth to parse into, will return whole child json object
                  // at this point. (zero means no max depth.)
 
+#ifdef JSON_PARCE_STRICT_MODE
+  // numeric tests
+  int f_minus : 2;
+  int f_dec : 2;
+  int f_e : 1;
+  int f_nonzero : 1;
+  int f_zero : 1;
+#endif
+
   // debug help
   const char *file;
   int line;

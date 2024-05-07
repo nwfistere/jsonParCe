@@ -487,8 +487,7 @@ int test_JSONTestSuite() {
         if (parser.err) {
           fprintf(stderr, "\t%s (%d) \n", json_errno_messages[parser.err],
                   parser.err);
-          fprintf(stderr, "\t%s.%s(%d)\n\n", parser.func, parser.file,
-                  parser.line);
+          fprintf(stderr, "\t%s(%d)\n\n",parser.file, parser.line);
         }
         retval++;
       } else if (ignore && !parser.err) {
@@ -511,7 +510,6 @@ int test_JSONTestSuite() {
         }
       }
     } else if (strncmp(filename, "n_", 2) == 0) {
-
       if (!parser.err) {
 #ifdef JSON_PARCE_STRICT_MODE
         // fprintf(stderr, "\"%s\",\n", filename);
@@ -521,8 +519,6 @@ int test_JSONTestSuite() {
         printf("\nINFO: \"%s\" SUCCESS - (JSON_PARCE_STRICT_MODE is disabled)",
                filepath);
 #endif
-      } else if (parser.err) {
-        printf("\nINFO: \"%s\" FAILED successfully but ignored\n", filepath);
       }
     } else {
       fprintf(stderr, "\nWARNING: Unexpected file parsed. %s", filepath);

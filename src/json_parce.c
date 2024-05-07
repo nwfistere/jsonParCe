@@ -223,6 +223,70 @@
     goto error;                                                                \
   }
 
+#ifdef JSON_PARCE_STRICT_MODE
+#define FAIL_NUMERIC() \
+  SET_ERRNO(ERRNO_INVALID_CHARACTER); \
+  goto error
+
+#define RESET_NUMERIC() \
+  parser->f_minus = 0; \
+  parser->f_dec = 0; \
+  parser->f_e = 0; \
+  parser->f_nonzero = 0; \
+  parser->f_zero = 0
+
+#define CHECK_NUMERIC(c) \
+  switch(c) { \
+    case 'e': \
+    case 'E': { \
+      if (parser->f_e) { \
+        FAIL_NUMERIC(); \
+      } \
+      parser->f_e = 1; \
+      break; \
+    } \
+    case '.': { \
+      if ((!parser->f_e && parser->f_dec) || (parser->f_dec >= 2)) { \
+        FAIL_NUMERIC(); \
+      } \
+      parser->f_dec++; \
+      break; \
+    } \
+    case '-': { \
+      if ((!parser->f_e && parser->f_dec) || (parser->f_minus >= 2)) { \
+        FAIL_NUMERIC(); \
+      } \
+      break; \
+    } \
+    case '0': { \
+      if (!parser->f_zero) { \
+        !parser->f_zero = 1; \
+      } \
+      if (!parser->f_nonzero) { \
+        FAIL_NUMERIC(); \
+      } \
+      break; \
+    } \
+    case '1':                                                                    \
+    case '2':                                                                    \
+    case '3':                                                                    \
+    case '4':                                                                    \
+    case '5':                                                                    \
+    case '6':                                                                    \
+    case '7':                                                                    \
+    case '8':                                                                    \
+    case '9': { \
+      if(!parser->f_nonzero) { \
+        parser->f_nonzero = 1; \
+      } \
+      break; \
+    }                                                                    \
+    default: { \
+      FAIL_NUMERIC(); \
+    } \
+  }
+#endif
+
 enum state {
   s_done = JSON_PARCE_DONE_STATE,
   s_dead = 1,
@@ -392,6 +456,7 @@ static size_t do_json_parce_execute(json_parce *parser,
         UPDATE_STATE(s_parse_array_nu);
       } else if (IS_NUMERIC(ch)) {
         UPDATE_STATE(s_parse_array_numeric);
+        REEXECUTE();
       } else {
         // TODO: Only do during strict?
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
@@ -554,13 +619,17 @@ static size_t do_json_parce_execute(json_parce *parser,
       if (ch == COMMA || ch == CB || IS_WHITESPACE(ch)) {
         ARRAY_CALLBACK_NOADVANCE();
         UPDATE_STATE(s_parse_array_between_values);
+#ifdef JSON_PARCE_STRICT_MODE
+        RESET_NUMERIC();
+#endif
         REEXECUTE();
       }
 #ifdef JSON_PARCE_STRICT_MODE
-      if (!IS_NUMERIC(ch)) {
-        SET_ERRNO(ERRNO_INVALID_CHARACTER);
-        goto error;
-      }
+      CHECK_NUMERIC(ch);
+      // if (!IS_NUMERIC(ch)) {
+      //   SET_ERRNO(ERRNO_INVALID_CHARACTER);
+      //   goto error;
+      // }
 #endif
       break;
     }
@@ -641,6 +710,7 @@ static size_t do_json_parce_execute(json_parce *parser,
         UPDATE_STATE(s_parse_object_value_nu);
       } else if (IS_NUMERIC(ch)) {
         UPDATE_STATE(s_parse_object_value_numeric);
+        REEXECUTE();
       } else {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
@@ -651,16 +721,20 @@ static size_t do_json_parce_execute(json_parce *parser,
       FIND_STRING_END_REEXECUTE(ch, s_parse_object_value_end);
     }
     case s_parse_object_value_numeric: {
-      if (ch == COMMA || ch == CCB) {
+      if (ch == COMMA || ch == CCB || IS_WHITESPACE(ch)) {
         OBJECT_CALLBACK_NOADVANCE()
         UPDATE_STATE(s_parse_object_between_values);
+#ifdef JSON_PARCE_STRICT_MODE
+        RESET_NUMERIC();
+#endif
         REEXECUTE();
       }
 #ifdef JSON_PARCE_STRICT_MODE
-      if (!IS_NUMERIC(ch)) {
-        SET_ERRNO(ERRNO_INVALID_CHARACTER);
-        goto error;
-      }
+      CHECK_NUMERIC(ch);
+      // if (!IS_NUMERIC(ch)) {
+      //   SET_ERRNO(ERRNO_INVALID_CHARACTER);
+      //   goto error;
+      // }
 #endif
       break;
     }
@@ -890,6 +964,11 @@ static size_t do_json_parce_execute(json_parce *parser,
 error:
   if (JSON_ERRNO(parser) == ERRNO_OK) {
     SET_ERRNO(ERRNO_UNKNOWN);
+  }
+
+  fprintf(stderr, "%s(%d) - %s\n", parser->file, parser->line, json_errno_messages[parser->err]);
+  if(parser->err == ERRNO_INVALID_CHARACTER) {
+    fprintf(stderr, "Invalid character: \"%c\"\n", *p);
   }
 
   RETURN(p - data);
