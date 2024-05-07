@@ -3,6 +3,8 @@
 
 #include <stddef.h>
 #include <uchar.h>
+#include <limits.h>
+#include <float.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,7 +47,8 @@ typedef enum JSON_TYPE {
   XX(FILE_OPEN_FAILURE, "failed to open file")                                 \
   XX(INVALID_ENCODING, "invalid encoding")                                     \
   XX(INCOMPLETE_DATA, "buffer ended before end of json")                       \
-  XX(CALLBACK_REQUESTED_STOP, "stop requested by callback")
+  XX(CALLBACK_REQUESTED_STOP, "stop requested by callback") \
+  XX(OUT_OF_RANGE, "value is out of range")
 
 #define ERRNO_GEN(n, s) ERRNO_##n,
 enum json_errno { ERRNO_MAP(ERRNO_GEN) };
@@ -72,7 +75,7 @@ typedef struct json_depth {
   struct json_depth *parent;
 } json_depth;
 
-typedef struct json_parser {
+typedef struct json_parce {
   size_t nread;
   size_t object_key_len;
   unsigned int state; // 6 bits
@@ -96,60 +99,82 @@ typedef struct json_parser {
   const char *file;
   int line;
   const char *func;
-} json_parser;
+} json_parce;
 
 // CALLBACKS
 // return 0 for success
 // return 1 for failure
 // return 2 for non-failure stop.
-// This will stop parsing, but json_parser_execute can be recalled and
+// This will stop parsing, but json_parce_execute can be recalled and
 // continued.
 
-typedef int (*json_object_cb)(json_parser *, const char *key, size_t key_len,
+typedef int (*json_object_cb)(json_parce *, const char *key, size_t key_len,
                               JSON_TYPE type, const char *value,
                               size_t value_length);
-typedef int (*json_array_cb)(json_parser *, unsigned int index, JSON_TYPE type,
+typedef int (*json_array_cb)(json_parce *, unsigned int index, JSON_TYPE type,
                              const char *value, size_t value_length);
 
-typedef struct json_parser_callbacks {
+typedef struct json_parce_callbacks {
   json_object_cb on_object_key_value_pair;
   json_array_cb on_array_value;
-} json_parser_callbacks;
+} json_parce_callbacks;
 
-JSON_PARCE_API void json_parser_init(json_parser *parser);
+JSON_PARCE_API void json_parce_init(json_parce *parser);
 
-JSON_PARCE_API void json_parser_free(json_parser *parser);
+JSON_PARCE_API void json_parce_free(json_parce *parser);
 
-JSON_PARCE_API size_t json_parser_execute(json_parser *parser,
-                                          json_parser_callbacks *callbacks,
+JSON_PARCE_API size_t json_parce_execute(json_parce *parser,
+                                          json_parce_callbacks *callbacks,
                                           const char *data, size_t len);
 
-JSON_PARCE_API size_t json_deep_parser_execute(json_parser *parser,
-                                               json_parser_callbacks *callbacks,
+JSON_PARCE_API size_t json_deep_parce_execute(json_parce *parser,
+                                               json_parce_callbacks *callbacks,
                                                const char *data, size_t len);
 
 JSON_PARCE_API size_t
-json_parser_execute_utf16(json_parser *parser, json_parser_callbacks *callbacks,
+json_parce_execute_utf16(json_parce *parser, json_parce_callbacks *callbacks,
                           const char16_t *data, size_t len);
 
 JSON_PARCE_API size_t
-json_parser_execute_utf32(json_parser *parser, json_parser_callbacks *callbacks,
+json_parce_execute_utf32(json_parce *parser, json_parce_callbacks *callbacks,
                           const char32_t *data, size_t len);
 
-JSON_PARCE_API size_t json_parser_execute_file(json_parser *parser,
-                                               json_parser_callbacks *callbacks,
+JSON_PARCE_API size_t json_parce_execute_file(json_parce *parser,
+                                               json_parce_callbacks *callbacks,
                                                const char *file);
 
-JSON_PARCE_API size_t json_parser_execute(json_parser *parser,
-                                          json_parser_callbacks *callbacks,
+JSON_PARCE_API size_t json_parce_execute(json_parce *parser,
+                                          json_parce_callbacks *callbacks,
                                           const char *data, size_t len);
 
-JSON_PARCE_API size_t json_parser_execute_file(json_parser *parser,
-                                               json_parser_callbacks *callbacks,
+JSON_PARCE_API size_t json_parce_execute_file(json_parce *parser,
+                                               json_parce_callbacks *callbacks,
                                                const char *file);
 
-JSON_PARCE_API size_t json_deep_parser_execute_file(
-    json_parser *parser, json_parser_callbacks *callbacks, const char *file);
+JSON_PARCE_API size_t json_deep_parce_execute_file(
+    json_parce *parser, json_parce_callbacks *callbacks, const char *file);
+
+#ifndef JSON_PARCE_REAL
+#define JSON_PARCE_REAL double
+#define JSON_PARCE_REAL_MAX DBL_MAX
+#define JSON_PARCE_REAL_MIN DBL_MIN
+#define JSON_PARCE_REAL_MAX_DIG (3 + DBL_MANT_DIG - DBL_MIN_EXP) // Maximum number of characters
+#endif
+
+#ifndef JSON_PARCE_INT
+#define JSON_PARCE_INT long long
+#define JSON_PARCE_INT_MAX LLONG_MAX
+#define JSON_PARCE_INT_MIN LLONG_MIN
+#define JSON_PARCE_INT_MAX_DIG ((3 * sizeof(JSON_PARCE_INT)) + 2) // Roughly the maximum number of characters in JSON_PARCE_INT
+#endif
+
+typedef JSON_PARCE_REAL json_parce_real_t;
+typedef JSON_PARCE_INT json_parce_int_t;
+
+JSON_PARCE_API char* json_parce_string(const char* str, size_t len);
+JSON_PARCE_API int json_parce_bool(const char* str);
+JSON_PARCE_API int json_parce_real(const char* str, size_t len, json_parce_real_t* ret);
+JSON_PARCE_API int json_parce_int(const char* str, size_t len, json_parce_int_t* ret);
 
 #ifdef __cplusplus
 }

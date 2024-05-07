@@ -11,12 +11,12 @@
 #include <windows.h>
 #endif
 
-static int on_array(json_parser *parser, unsigned int index, JSON_TYPE type,
+static int on_array(json_parce *parser, unsigned int index, JSON_TYPE type,
                     const char *value, size_t value_length) {
   return 0;
 }
 
-static json_parser_callbacks cbs = {.on_object_key_value_pair = NULL,
+static json_parce_callbacks cbs = {.on_object_key_value_pair = NULL,
                                     .on_array_value = on_array};
 
 /* 8 gb */
@@ -89,7 +89,7 @@ int bench(int iter_count, const char *data, size_t len);
 int main() { return bench_array_and_object(); }
 
 int bench(int iter_count, const char *data, size_t len) {
-  json_parser parser;
+  json_parce parser;
   int i;
 #ifndef _WIN32
   int err;
@@ -113,9 +113,9 @@ int bench(int iter_count, const char *data, size_t len) {
 
   for (i = 0; i < iter_count; i++) {
     size_t parsed;
-    json_parser_init(&parser);
+    json_parce_init(&parser);
 
-    parsed = json_parser_execute(&parser, &cbs, data, len);
+    parsed = json_parce_execute(&parser, &cbs, data, len);
   }
 
   if (!silent) {

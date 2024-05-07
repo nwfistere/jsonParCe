@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <stdio.h>
 
-static int on_typed_object_value_cb(json_parser *parser, const char *key,
+static int on_typed_object_value_cb(json_parce *parser, const char *key,
                                     size_t key_length, JSON_TYPE type,
                                     const char *value, size_t value_length) {
   (void)parser;
@@ -11,7 +11,7 @@ static int on_typed_object_value_cb(json_parser *parser, const char *key,
   return 0;
 }
 
-static int on_typed_array_value_cb(json_parser *parser, unsigned int index,
+static int on_typed_array_value_cb(json_parce *parser, unsigned int index,
                                    JSON_TYPE type, const char *value,
                                    size_t value_length) {
   (void)parser;
@@ -29,21 +29,21 @@ static const char object_data[] =
 static const size_t object_data_len = sizeof(object_data) - 1;
 
 int main(void) {
-  json_parser parser;
-  json_parser_callbacks cbs = {.on_array_value = on_typed_array_value_cb,
+  json_parce parser;
+  json_parce_callbacks cbs = {.on_array_value = on_typed_array_value_cb,
                                .on_object_key_value_pair =
                                    on_typed_object_value_cb};
 
   printf("%10s%10s%10s%20s\n", "Key", "Index", "Type", "Value");
-  json_parser_init(&parser);
+  json_parce_init(&parser);
   size_t retval =
-      json_parser_execute(&parser, &cbs, array_data, array_data_len);
+      json_parce_execute(&parser, &cbs, array_data, array_data_len);
   assert(retval == array_data_len);
   (void)retval;
 
   printf("\n%10s%10s%10s%20s\n", "Key", "Index", "Type", "Value");
-  json_parser_init(&parser);
-  retval = json_parser_execute(&parser, &cbs, object_data, object_data_len);
+  json_parce_init(&parser);
+  retval = json_parce_execute(&parser, &cbs, object_data, object_data_len);
   assert(retval == object_data_len);
   (void)retval;
 

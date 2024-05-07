@@ -10,7 +10,7 @@ set(JSON_PARCE_ENABLE_STRICT_MODE OFF CACHE BOOL "Enables compiling with strict 
 set(JSON_PARCE_DEBUG_TEST OFF CACHE BOOL "Enables verbose logging during test.")
 
 
-project(json_parser C)
+project(json_parce C)
 set(C_STANDARD 11)
 
 include(FetchContent)
@@ -36,6 +36,7 @@ if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
   # MSVC Warning 4333 warns about shifting too far
   # MSVC Warning 4711 warns about auto-inline of non-inlined functions during optimization.
   # MSVC Warning 4710 warns about not inlining a specific function
+  # C4476, 4474 testing
   set(JSON_PARCE_COMPILE_OPTIONS /nologo /Wall /WX /wd4820 /wd5045 /wd4996 /wd4127 /wd4333 /wd4711 /wd4710)
   list(APPEND JSON_PARCE_COMPILE_DEFINITIONS /D_CRT_SECURE_NO_WARNINGS)
   if(CMAKE_BUILD_TYPE STREQUAL "Release")

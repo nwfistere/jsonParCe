@@ -1,5 +1,6 @@
 #include "json_parce.h"
 #include "encoding.h"
+#include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -161,26 +162,10 @@
   }                                                                            \
   default: {                                                                   \
     (T) = NONE;                                                                \
-    break;                                                                     \
+    SET_ERRNO(ERRNO_INVALID_CHARACTER); \
+    goto error; \
   }                                                                            \
   }
-
-#define UPDATE_PARSER(LP, RP)                                                  \
-  do {                                                                         \
-    /* Copy over everything but data. */                                       \
-    (LP)->state = (RP)->state;                                                 \
-    (LP)->err = (RP)->err;                                                     \
-    (LP)->nread = (RP)->nread;                                                 \
-    (LP)->array_item_mark = (RP)->array_item_mark;                             \
-    (LP)->array_index = (RP)->array_index;                                     \
-    (LP)->array_count = (RP)->array_count;                                     \
-    (LP)->object_count = (RP)->object_count;                                   \
-    (LP)->object_key_mark = (RP)->object_key_mark;                             \
-    (LP)->object_key_len = (RP)->object_key_len;                               \
-    (LP)->object_value_mark = (RP)->object_value_mark;                         \
-    (LP)->current_depth = (RP)->current_depth;                                 \
-    (LP)->max_depth = (RP)->max_depth;                                         \
-  } while (0)
 
 #define INCREASE_DEPTH(NEW_STATE, MAX_DEPTH_STATE)                             \
   if ((parser->max_depth > 0) &&                                               \
@@ -295,12 +280,12 @@ static void json_depth_init(json_depth *depth) {
   memset(depth, 0, sizeof(*depth));
 }
 
-JSON_PARCE_API void json_parser_init(json_parser *parser) {
+JSON_PARCE_API void json_parce_init(json_parce *parser) {
   memset(parser, 0, sizeof(*parser));
   parser->state = s_start;
 }
 
-JSON_PARCE_API void json_parser_free(json_parser *parser) {
+JSON_PARCE_API void json_parce_free(json_parce *parser) {
   while (parser->current_depth) {
     json_depth *old = parser->current_depth;
     parser->current_depth = parser->current_depth->parent;
@@ -310,8 +295,8 @@ JSON_PARCE_API void json_parser_free(json_parser *parser) {
   memset(parser, 0, sizeof(*parser));
 }
 
-static size_t do_json_parser_execute(json_parser *parser,
-                                     json_parser_callbacks *callbacks,
+static size_t do_json_parce_execute(json_parce *parser,
+                                     json_parce_callbacks *callbacks,
                                      const char *data, size_t len,
                                      const int deep) {
   const char *p = data;
@@ -333,13 +318,7 @@ static size_t do_json_parser_execute(json_parser *parser,
       }
       if (ch == OB || ch == OCB) {
         if (deep) {
-          if (parser->current_depth) {
-            fprintf(
-                stderr,
-                "\n\n################################\ncurrent_depth already "
-                "defined!! <%s>\n################################\n\n",
-                data);
-          }
+          assert(parser->current_depth == NULL);
           parser->current_depth = (json_depth *)malloc(sizeof(json_depth));
           json_depth_init(parser->current_depth);
         }
@@ -677,6 +656,12 @@ static size_t do_json_parser_execute(json_parser *parser,
         UPDATE_STATE(s_parse_object_between_values);
         REEXECUTE();
       }
+#ifdef JSON_PARCE_STRICT_MODE
+      if (!IS_NUMERIC(ch)) {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+#endif
       break;
     }
     case s_parse_object_value_nu: {
@@ -910,20 +895,20 @@ error:
   RETURN(p - data);
 }
 
-JSON_PARCE_API size_t json_parser_execute(json_parser *parser,
-                                          json_parser_callbacks *callbacks,
+JSON_PARCE_API size_t json_parce_execute(json_parce *parser,
+                                          json_parce_callbacks *callbacks,
                                           const char *data, size_t len) {
-  return do_json_parser_execute(parser, callbacks, data, len, 0);
+  return do_json_parce_execute(parser, callbacks, data, len, 0);
 }
 
-JSON_PARCE_API size_t json_deep_parser_execute(json_parser *parser,
-                                               json_parser_callbacks *callbacks,
+JSON_PARCE_API size_t json_deep_parce_execute(json_parce *parser,
+                                               json_parce_callbacks *callbacks,
                                                const char *data, size_t len) {
-  return do_json_parser_execute(parser, callbacks, data, len, 1);
+  return do_json_parce_execute(parser, callbacks, data, len, 1);
 }
 
 JSON_PARCE_API size_t
-json_parser_execute_utf16(json_parser *parser, json_parser_callbacks *callbacks,
+json_parce_execute_utf16(json_parce *parser, json_parce_callbacks *callbacks,
                           const char16_t *data, size_t len) {
   char *content = NULL;
   size_t content_len = 0;
@@ -935,14 +920,14 @@ json_parser_execute_utf16(json_parser *parser, json_parser_callbacks *callbacks,
     return 0;
   }
 
-  size_t retval = json_parser_execute(parser, callbacks, content, content_len);
+  size_t retval = json_parce_execute(parser, callbacks, content, content_len);
 
   free(content);
   return retval;
 }
 
 JSON_PARCE_API size_t
-json_parser_execute_utf32(json_parser *parser, json_parser_callbacks *callbacks,
+json_parce_execute_utf32(json_parce *parser, json_parce_callbacks *callbacks,
                           const char32_t *data, size_t len) {
   char *content = NULL;
   size_t content_len = 0;
@@ -954,14 +939,14 @@ json_parser_execute_utf32(json_parser *parser, json_parser_callbacks *callbacks,
     return 0;
   }
 
-  size_t retval = json_parser_execute(parser, callbacks, content, content_len);
+  size_t retval = json_parce_execute(parser, callbacks, content, content_len);
 
   free(content);
   return retval;
 }
 
-static size_t do_json_parser_execute_file(json_parser *parser,
-                                          json_parser_callbacks *callbacks,
+static size_t do_json_parce_execute_file(json_parce *parser,
+                                          json_parce_callbacks *callbacks,
                                           const char *file, int deep) {
 
   int encoding = UNKNOWN;
@@ -1040,20 +1025,62 @@ static size_t do_json_parser_execute_file(json_parser *parser,
   fclose(fp);
 
   size_t retval =
-      do_json_parser_execute(parser, callbacks, content, content_len, deep);
+      do_json_parce_execute(parser, callbacks, content, content_len, deep);
 
   free(content);
 
   return retval;
 }
 
-JSON_PARCE_API size_t json_parser_execute_file(json_parser *parser,
-                                               json_parser_callbacks *callbacks,
+JSON_PARCE_API size_t json_parce_execute_file(json_parce *parser,
+                                               json_parce_callbacks *callbacks,
                                                const char *file) {
-  return do_json_parser_execute_file(parser, callbacks, file, 0);
+  return do_json_parce_execute_file(parser, callbacks, file, 0);
 }
 
-JSON_PARCE_API size_t json_deep_parser_execute_file(
-    json_parser *parser, json_parser_callbacks *callbacks, const char *file) {
-  return do_json_parser_execute_file(parser, callbacks, file, 1);
+JSON_PARCE_API size_t json_deep_parce_execute_file(
+    json_parce *parser, json_parce_callbacks *callbacks, const char *file) {
+  return do_json_parce_execute_file(parser, callbacks, file, 1);
+}
+
+JSON_PARCE_API char* json_parce_string(const char* str, size_t len) {
+  char* ret = (char*)malloc((len + 1) * sizeof(char));
+  memcpy(ret, str, len + 1);
+  return ret;
+}
+
+JSON_PARCE_API int json_parce_bool(const char* str) {
+  return (str && str[0] && (str[0] == 't'));
+}
+
+JSON_PARCE_API int json_parce_real(const char* str, size_t len, json_parce_real_t* ret) {
+  char lstr[JSON_PARCE_REAL_MAX_DIG + 1] = { 0 };
+
+  if (len > JSON_PARCE_REAL_MAX_DIG) {
+    return ERRNO_OUT_OF_RANGE;
+  }
+
+  strncpy(lstr, str, len);
+  int status = sscanf(lstr, "%lf", ret);
+  if (!status) {
+    return ERRNO_OUT_OF_RANGE;
+  }
+
+  return 0;
+}
+
+JSON_PARCE_API int json_parce_int(const char* str, size_t len, json_parce_int_t* ret) {
+  char lstr[JSON_PARCE_INT_MAX_DIG + 1] = { 0 };
+
+  if (len > JSON_PARCE_INT_MAX_DIG) {
+    return ERRNO_OUT_OF_RANGE;
+  }
+
+  strncpy(lstr, str, len);
+  int status = sscanf(lstr, "%lld", ret);
+  if (status != 1) {
+    return ERRNO_OUT_OF_RANGE;
+  }
+
+  return 0;
 }
