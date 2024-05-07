@@ -1,38 +1,42 @@
-set(TEST_PARSER_COMPILE_OPTIONS ${PARSER_COMPILE_OPTIONS})
-set(TEST_PARSER_LINK_OPTIONS ${PARSER_LINK_OPTIONS})
+set(TEST_JSON_PARCE_COMPILE_OPTIONS ${JSON_PARCE_COMPILE_OPTIONS})
+set(TEST_JSON_PARCE_LINK_OPTIONS ${JSON_PARCE_LINK_OPTIONS})
 
 
-list(FILTER TEST_PARSER_COMPILE_OPTIONS EXCLUDE REGEX [/-][Ww].*)
+list(FILTER TEST_JSON_PARCE_COMPILE_OPTIONS EXCLUDE REGEX [/-][Ww].*)
 if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
   # Disable warnings on test code
-  list(APPEND TEST_PARSER_COMPILE_OPTIONS /W0)
+  list(APPEND TEST_JSON_PARCE_COMPILE_OPTIONS /W0)
+endif()
+
+if(JSON_PARCE_DEBUG_TEST)
+  add_compile_definitions(JSON_PARCE_ENABLE_TEST_DEBUG)
 endif()
 
 add_executable(${PROJECT_NAME}_bench bench.c)
 target_include_directories(${PROJECT_NAME}_bench PRIVATE ../include)
 target_link_libraries(${PROJECT_NAME}_bench PRIVATE json_parser_static)
-target_link_options(${PROJECT_NAME}_bench PRIVATE ${TEST_PARSER_LINK_OPTIONS}) 
-target_compile_options(${PROJECT_NAME}_bench PRIVATE ${TEST_PARSER_COMPILE_OPTIONS}) 
+target_link_options(${PROJECT_NAME}_bench PRIVATE ${TEST_JSON_PARCE_LINK_OPTIONS}) 
+target_compile_options(${PROJECT_NAME}_bench PRIVATE ${TEST_JSON_PARCE_COMPILE_OPTIONS}) 
 
 add_executable(${PROJECT_NAME}_test_static test.c)
 target_include_directories(${PROJECT_NAME}_test_static PRIVATE ../include)
 target_link_libraries(${PROJECT_NAME}_test_static PRIVATE json_parser_static)
-target_link_options(${PROJECT_NAME}_test_static PRIVATE ${TEST_PARSER_LINK_OPTIONS}) 
-target_compile_options(${PROJECT_NAME}_test_static PRIVATE ${TEST_PARSER_COMPILE_OPTIONS})
+target_link_options(${PROJECT_NAME}_test_static PRIVATE ${TEST_JSON_PARCE_LINK_OPTIONS}) 
+target_compile_options(${PROJECT_NAME}_test_static PRIVATE ${TEST_JSON_PARCE_COMPILE_OPTIONS})
 
-if(PARSER_ENABLE_STRICT_MODE)
-  target_compile_definitions(${PROJECT_NAME}_test_static PUBLIC C_JSON_PARSER_STRICT_MODE)
+if(JSON_PARCE_ENABLE_STRICT_MODE)
+  target_compile_definitions(${PROJECT_NAME}_test_static PUBLIC JSON_PARCE_STRICT_MODE)
 endif()
 
 add_executable(${PROJECT_NAME}_test_shared test.c)
 target_include_directories(${PROJECT_NAME}_test_shared PRIVATE ../include)
 target_link_libraries(${PROJECT_NAME}_test_shared PRIVATE json_parser_shared)
-target_link_options(${PROJECT_NAME}_test_shared PRIVATE ${TEST_PARSER_LINK_OPTIONS}) 
-target_compile_options(${PROJECT_NAME}_test_shared PRIVATE ${TEST_PARSER_COMPILE_OPTIONS})
+target_link_options(${PROJECT_NAME}_test_shared PRIVATE ${TEST_JSON_PARCE_LINK_OPTIONS}) 
+target_compile_options(${PROJECT_NAME}_test_shared PRIVATE ${TEST_JSON_PARCE_COMPILE_OPTIONS})
 target_compile_definitions(${PROJECT_NAME}_test_shared PRIVATE LIBRARY_IMPORTS)
 
-if(PARSER_ENABLE_STRICT_MODE)
-  target_compile_definitions(${PROJECT_NAME}_test_shared PUBLIC C_JSON_PARSER_STRICT_MODE)
+if(JSON_PARCE_ENABLE_STRICT_MODE)
+  target_compile_definitions(${PROJECT_NAME}_test_shared PUBLIC JSON_PARCE_STRICT_MODE)
 endif()
 
 if(CMAKE_CONFIGURATION_TYPES)

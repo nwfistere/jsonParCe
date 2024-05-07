@@ -31,15 +31,19 @@
           "type": "BOOL",
           "value": "ON"
         },
-        "PARSER_ENABLE_TEST": {
+        "JSON_PARCE_ENABLE_TEST": {
           "type": "BOOL",
           "value": "ON"
         },
-        "PARSER_ENABLE_EXAMPLE_COMPILE": {
+        "JSON_PARCE_ENABLE_EXAMPLE_COMPILE": {
           "type": "BOOL",
           "value": "ON"
         },
-        "PARSER_ENABLE_SANITIZERS": {
+        "JSON_PARCE_ENABLE_SANITIZERS": {
+          "type": "BOOL",
+          "value": "ON"
+        },
+        "JSON_PARCE_DEBUG_TEST": {
           "type": "BOOL",
           "value": "ON"
         }
@@ -52,7 +56,7 @@
       ],
       "hidden": true,
       "cacheVariables": {
-        "PARSER_ENABLE_STRICT_MODE": {
+        "JSON_PARCE_ENABLE_STRICT_MODE": {
           "type": "BOOL",
           "value": "ON"
         }

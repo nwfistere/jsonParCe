@@ -63,9 +63,9 @@ jobs:
         -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-        -DPARSER_ENABLE_TEST=ON
-        -DPARSER_ENABLE_EXAMPLE_COMPILE=ON
-        -DPARSER_ENABLE_STRICT_MODE=${{ matrix.strict_define }}
+        -DJSON_PARCE_ENABLE_TEST=ON
+        -DJSON_PARCE_ENABLE_EXAMPLE_COMPILE=ON
+        -DJSON_PARCE_ENABLE_STRICT_MODE=${{ matrix.strict_define }}
         -S ${{ github.workspace }}
 
     - name: Build

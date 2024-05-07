@@ -1,8 +1,9 @@
-#include "c_json_parser.h"
+#include "json_parce.h"
 #include "string.h"
 #include <assert.h>
 #include <locale.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -21,6 +22,46 @@ static const char object_data[] =
     "\"number\":-10.35E1234   , \"string\": \"str\\\\ing\", "
     "\"object\":{\"\\\\\":\"\\\\\"}, \"array\":[\"\\\\\"]}";
 static const size_t object_data_len = sizeof(object_data) - 1;
+
+static void get_log_string(const size_t maxlen, const char *str, size_t len,
+                           char **retstr, size_t *retlen) {
+  *retstr = (char *)malloc((maxlen + 3 + 1) * sizeof(char));
+  memset(*retstr, 0, (maxlen + 3 + 1) * sizeof(char));
+  int j = 0;
+  for (int i = 0; ((i < len) && (j < maxlen)); i++) {
+    switch (str[i]) {
+    case '\n':
+      (*retstr)[j++] = '\\';
+      (*retstr)[j] = 'n';
+      break;
+    case '\r':
+      (*retstr)[j++] = '\\';
+      (*retstr)[j] = 'r';
+      break;
+    case '\t':
+      (*retstr)[j++] = '\\';
+      (*retstr)[j] = 't';
+      break;
+    case '\v':
+      (*retstr)[j++] = '\\';
+      (*retstr)[j] = 'v';
+      break;
+    case '\f':
+      (*retstr)[j++] = '\\';
+      (*retstr)[j] = 'f';
+      break;
+    default:
+      (*retstr)[j] = str[i];
+    }
+    j++;
+  }
+  if (len > maxlen) {
+    for (int i = 0; i < 3; i++) {
+      (*retstr)[j++] = '.';
+    }
+  }
+  *retlen = j;
+}
 
 int on_object_value_cb(json_parser *parser, const char *key, size_t key_length,
                        JSON_TYPE type, const char *value, size_t value_length) {
@@ -53,7 +94,7 @@ static void print_retval(size_t retval, size_t expected, json_parser *parser) {
            parser->err);
   }
 
-  if (parser->state != C_JSON_PARSER_DONE_STATE) {
+  if (parser->state != JSON_PARCE_DONE_STATE) {
     printf("%d) state is not done (38) state: %d \n", calls, parser->state);
   }
 
@@ -68,7 +109,7 @@ static void print_retval(size_t retval, size_t expected, json_parser *parser) {
 
   assert(retval == expected);
   assert(parser->err == 0);
-  assert(parser->state == C_JSON_PARSER_DONE_STATE);
+  assert(parser->state == JSON_PARCE_DONE_STATE);
 }
 
 int test_parsing();
@@ -100,12 +141,14 @@ int main() {
   retval =
       json_deep_parser_execute(&parser, &deep_cbs, array_data, array_data_len);
   print_retval(retval, array_data_len, &parser);
+  json_parser_free(&parser);
 
   // Test deep object
   json_parser_init(&parser);
   retval = json_deep_parser_execute(&parser, &deep_cbs, object_data,
                                     object_data_len);
   print_retval(retval, object_data_len, &parser);
+  json_parser_free(&parser);
 
   // 1
   json_parser_init(&parser);
@@ -263,15 +306,73 @@ int test_parsing() {
   return 0;
 }
 
+static char *test_JSONTestSuite_file = NULL;
+
+int test_JSONTestSuite_array(json_parser *parser, unsigned int index,
+                             JSON_TYPE type, const char *value,
+                             size_t value_length) {
+#ifdef JSON_PARCE_ENABLE_TEST_DEBUG
+  printf("%65s", test_JSONTestSuite_file);
+  printf("%10d", parser->current_depth->depth);
+  if (parser->current_depth->key) {
+    printf("%10.*s", (int)parser->current_depth->key_len,
+           parser->current_depth->key);
+  } else if (parser->current_depth->depth > 0) {
+    printf("%10d", (int)parser->current_depth->array_index);
+  } else {
+    printf("%10s", "[ROOT]");
+  }
+  char *log_value = NULL;
+  size_t log_value_len = 0;
+  get_log_string(10, value, value_length, &log_value, &log_value_len);
+  printf("%10s%10d%10d%15.*s\n", "-", index, type, (int)log_value_len,
+         log_value);
+  free(log_value);
+#endif
+  return 0;
+}
+
+int test_JSONTestSuite_object(json_parser *parser, const char *key,
+                              size_t key_length, JSON_TYPE type,
+                              const char *value, size_t value_length) {
+#ifdef JSON_PARCE_ENABLE_TEST_DEBUG
+  printf("%65s", test_JSONTestSuite_file);
+  printf("%10d", parser->current_depth->depth);
+  if (parser->current_depth->key) {
+    printf("%10.*s", (int)parser->current_depth->key_len,
+           parser->current_depth->key);
+  } else if (parser->current_depth->depth > 0) {
+    printf("%10d", (int)parser->current_depth->array_index);
+  } else {
+    printf("%10s", "{ROOT}");
+  }
+  char *log_value = NULL;
+  size_t log_value_len = 0;
+  get_log_string(10, value, value_length, &log_value, &log_value_len);
+  printf("%10.*s%10s%10d%15.*s\n", (int)key_length, key, "-", type,
+         (int)log_value_len, log_value);
+  free(log_value);
+#endif
+  return 0;
+}
+
 int test_JSONTestSuite() {
   int retval = 0;
   json_parser parser;
-  json_parser_callbacks cbs = {0};
 
   size_t filesize;
   char *filename;
   char *path = "./test_parsing";
   char filepath[1024] = {0};
+
+  json_parser_callbacks deep_cbs = {.on_array_value = test_JSONTestSuite_array,
+                                    .on_object_key_value_pair =
+                                        test_JSONTestSuite_object};
+
+#ifdef JSON_PARCE_ENABLE_TEST_DEBUG
+  printf("%65s%10s%10s%10s%10s%10s%15s\n", "Filename", "Depth", "Parent", "Key",
+         "Index", "Type", "Value");
+#endif
 
 #ifdef _WIN32
   WIN32_FIND_DATA fd;
@@ -322,8 +423,10 @@ int test_JSONTestSuite() {
     filename = entry->d_name;
 #endif // WIN32
 
+    test_JSONTestSuite_file = filename;
+
     json_parser_init(&parser);
-    size_t retval = json_parser_execute_file(&parser, &cbs, filepath);
+    size_t retval = json_deep_parser_execute_file(&parser, &deep_cbs, filepath);
 
     // y_* files should work
     // i_* files may work.
@@ -436,14 +539,13 @@ int test_JSONTestSuite() {
       }
 
       if (!ignore && !parser.err) {
-#ifdef C_JSON_PARSER_STRICT_MODE
+#ifdef JSON_PARCE_STRICT_MODE
         // fprintf(stderr, "\"%s\",\n", filename);
         fprintf(stderr, "\nERROR: \"%s\" SUCCESS\n", filepath);
         retval++;
 #else
-        printf(
-            "\nINFO: \"%s\" SUCCESS - (C_JSON_PARSER_STRICT_MODE is disabled)",
-            filepath);
+        printf("\nINFO: \"%s\" SUCCESS - (JSON_PARCE_STRICT_MODE is disabled)",
+               filepath);
 #endif
       } else if (ignore && parser.err) {
         printf("\nINFO: \"%s\" FAILED successfully but ignored\n", filepath);
@@ -451,11 +553,10 @@ int test_JSONTestSuite() {
     } else {
       fprintf(stderr, "\nWARNING: Unexpected file parsed. %s", filepath);
     }
-
+    // free parser in case of failure.
+    json_parser_free(&parser);
 #ifdef _WIN32
-
   } while (FindNextFile(hFind, &fd));
-
   FindClose(hFind);
 #else
   } // while loop

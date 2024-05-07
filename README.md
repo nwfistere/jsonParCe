@@ -110,8 +110,8 @@ cmake --install --prefix <PREFIX>
 ```
 ### Optional defines
 The following defines can be included in the initial cmake command. The option shown (ON/OFF) is the default.
- - `-DPARSER_COMPILE_SHARED_LIBRARY=ON`: Enables compiling of the static library
- - `-DPARSER_COMPILE_STATIC_LIBRARY=ON`: Enables compiling of the shared library
- - `-DPARSER_ENABLE_TEST=ON`: Enables compiling of the tests
- - `-DPARSER_ENABLE_TEST_COVERAGE=OFF`: Enables addition of the `--coverage` flag for gcov.
- - `-DPARSER_ENABLE_EXAMPLE_COMPILE=OFF`: Enables compiling of the examples directory.
+ - `-DJSON_PARCE_COMPILE_SHARED_LIBRARY=ON`: Enables compiling of the static library
+ - `-DJSON_PARCE_COMPILE_STATIC_LIBRARY=ON`: Enables compiling of the shared library
+ - `-DJSON_PARCE_ENABLE_TEST=ON`: Enables compiling of the tests
+ - `-DJSON_PARCE_ENABLE_TEST_COVERAGE=OFF`: Enables addition of the `--coverage` flag for gcov.
+ - `-DJSON_PARCE_ENABLE_EXAMPLE_COMPILE=OFF`: Enables compiling of the examples directory.

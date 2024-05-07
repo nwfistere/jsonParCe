@@ -1,4 +1,4 @@
-#include "c_json_parser.h"
+#include "json_parce.h"
 #include "encoding.h"
 #include <stdint.h>
 #include <stdlib.h>
@@ -239,7 +239,7 @@
   }
 
 enum state {
-  s_done = C_JSON_PARSER_DONE_STATE,
+  s_done = JSON_PARCE_DONE_STATE,
   s_dead = 1,
   s_start,
   s_parse_array_start,
@@ -295,9 +295,19 @@ static void json_depth_init(json_depth *depth) {
   memset(depth, 0, sizeof(*depth));
 }
 
-C_JSON_PARSER_API void json_parser_init(json_parser *parser) {
+JSON_PARCE_API void json_parser_init(json_parser *parser) {
   memset(parser, 0, sizeof(*parser));
   parser->state = s_start;
+}
+
+JSON_PARCE_API void json_parser_free(json_parser *parser) {
+  while (parser->current_depth) {
+    json_depth *old = parser->current_depth;
+    parser->current_depth = parser->current_depth->parent;
+    free(old);
+  }
+
+  memset(parser, 0, sizeof(*parser));
 }
 
 static size_t do_json_parser_execute(json_parser *parser,
@@ -321,19 +331,28 @@ static size_t do_json_parser_execute(json_parser *parser,
       if (IS_WHITESPACE(ch)) {
         break;
       }
-      if (deep) {
-        parser->current_depth = (json_depth *)malloc(sizeof(json_depth));
-        json_depth_init(parser->current_depth);
-      }
-      if (ch == OB) {
-        UPDATE_STATE(s_parse_array_start);
-      } else if (ch == OCB) {
+      if (ch == OB || ch == OCB) {
         if (deep) {
-          parser->current_depth->type = 1;
+          if (parser->current_depth) {
+            fprintf(
+                stderr,
+                "\n\n################################\ncurrent_depth already "
+                "defined!! <%s>\n################################\n\n",
+                data);
+          }
+          parser->current_depth = (json_depth *)malloc(sizeof(json_depth));
+          json_depth_init(parser->current_depth);
         }
-        UPDATE_STATE(s_parse_object_start);
+        if (ch == OB) {
+          UPDATE_STATE(s_parse_array_start);
+        } else if (ch == OCB) {
+          if (deep) {
+            parser->current_depth->type = 1;
+          }
+          UPDATE_STATE(s_parse_object_start);
+        }
       }
-#ifdef C_JSON_PARSER_STRICT_MODE
+#ifdef JSON_PARCE_STRICT_MODE
       else {
         UPDATE_STATE(s_parse_BOM_EF);
         REEXECUTE();
@@ -354,7 +373,7 @@ static size_t do_json_parser_execute(json_parser *parser,
         }
         break;
       }
-#ifdef C_JSON_PARSER_STRICT_MODE
+#ifdef JSON_PARCE_STRICT_MODE
       else if (!IS_ARRAY_TOKEN(ch)) {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
@@ -448,30 +467,30 @@ static size_t do_json_parser_execute(json_parser *parser,
       FIND_STRING_END_REEXECUTE(ch, s_parse_array_item_end);
     }
     case s_parse_array_nu: {
-#ifdef C_JSON_PARSER_STRICT_MODE
+#ifdef JSON_PARCE_STRICT_MODE
       if (ch != 'u') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
       }
-#endif
       UPDATE_STATE(s_parse_array_nul);
+#else
+      // If non-strict mode, skip to end.
+      p++;
+      UPDATE_STATE(s_parse_array_item_end);
+#endif
       break;
     }
     case s_parse_array_nul: {
-#ifdef C_JSON_PARSER_STRICT_MODE
+      // Only ran on JSON_PARCE_STRICT_MODE
       if (ch != 'l') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
       }
       UPDATE_STATE(s_parse_array_null);
       break;
-#else
-      UPDATE_STATE(s_parse_array_item_end);
-      break;
-#endif
     }
     case s_parse_array_null: {
-      // Only ran on C_JSON_PARSER_STRICT_MODE
+      // Only ran on JSON_PARCE_STRICT_MODE
       if (ch != 'l') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
@@ -480,30 +499,30 @@ static size_t do_json_parser_execute(json_parser *parser,
       REEXECUTE();
     }
     case s_parse_array_tr: {
-#ifdef C_JSON_PARSER_STRICT_MODE
+#ifdef JSON_PARCE_STRICT_MODE
       if (ch != 'r') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
       }
-#endif
       UPDATE_STATE(s_parse_array_tru);
+#else
+      // If non-strict mode, skip to end.
+      p++;
+      UPDATE_STATE(s_parse_array_item_end);
+#endif
       break;
     }
     case s_parse_array_tru: {
-#ifdef C_JSON_PARSER_STRICT_MODE
+      // Only ran on JSON_PARCE_STRICT_MODE
       if (ch != 'u') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
       }
       UPDATE_STATE(s_parse_array_true);
       break;
-#else
-      UPDATE_STATE(s_parse_array_item_end);
-      break;
-#endif
     }
     case s_parse_array_true: {
-      // Only ran on C_JSON_PARSER_STRICT_MODE
+      // Only ran on JSON_PARCE_STRICT_MODE
       if (ch != 'e') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
@@ -512,37 +531,39 @@ static size_t do_json_parser_execute(json_parser *parser,
       REEXECUTE();
     }
     case s_parse_array_fa: {
-#ifdef C_JSON_PARSER_STRICT_MODE
+#ifdef JSON_PARCE_STRICT_MODE
       if (ch != 'a') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
       }
-#endif
       UPDATE_STATE(s_parse_array_fal);
+#else
+      // If non-strict mode, skip to end.
+      p += 2;
+      UPDATE_STATE(s_parse_array_item_end);
+#endif
       break;
     }
     case s_parse_array_fal: {
-#ifdef C_JSON_PARSER_STRICT_MODE
+      // Only ran on JSON_PARCE_STRICT_MODE
       if (ch != 'l') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
       }
-#endif
       UPDATE_STATE(s_parse_array_fals);
       break;
     }
     case s_parse_array_fals: {
-#ifdef C_JSON_PARSER_STRICT_MODE
+      // Only ran on JSON_PARCE_STRICT_MODE
       if (ch != 's') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
       }
-#endif
       UPDATE_STATE(s_parse_array_item_end);
       break;
     }
     case s_parse_array_false: {
-      // Only ran on C_JSON_PARSER_STRICT_MODE
+      // Only ran on JSON_PARCE_STRICT_MODE
       if (ch != 'e') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
@@ -556,8 +577,7 @@ static size_t do_json_parser_execute(json_parser *parser,
         UPDATE_STATE(s_parse_array_between_values);
         REEXECUTE();
       }
-
-#ifdef C_JSON_PARSER_STRICT_MODE
+#ifdef JSON_PARCE_STRICT_MODE
       if (!IS_NUMERIC(ch)) {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
@@ -660,63 +680,62 @@ static size_t do_json_parser_execute(json_parser *parser,
       break;
     }
     case s_parse_object_value_nu: {
-#ifdef C_JSON_PARSER_STRICT_MODE
+#ifdef JSON_PARCE_STRICT_MODE
       if (ch != 'u') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
       }
-#endif
       UPDATE_STATE(s_parse_object_value_nul);
+#else
+      // If non-strict mode, skip to end.
+      p++;
+      UPDATE_STATE(s_parse_object_value_end);
+#endif
       break;
     }
     case s_parse_object_value_nul: {
-#ifdef C_JSON_PARSER_STRICT_MODE
+      // Only ran on JSON_PARCE_STRICT_MODE
       if (ch != 'l') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
       }
       UPDATE_STATE(s_parse_object_value_null);
       break;
-#else
-      UPDATE_STATE(s_parse_object_value_end);
-      break;
-#endif
     }
     case s_parse_object_value_null: {
-#ifdef C_JSON_PARSER_STRICT_MODE
+      // Only ran on JSON_PARCE_STRICT_MODE
       if (ch != 'l') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
       }
-#endif
       UPDATE_STATE(s_parse_object_value_end);
       REEXECUTE();
     }
     case s_parse_object_value_tr: {
-#ifdef C_JSON_PARSER_STRICT_MODE
+#ifdef JSON_PARCE_STRICT_MODE
       if (ch != 'r') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
       }
-#endif
       UPDATE_STATE(s_parse_object_value_tru);
+#else
+      // If non-strict mode, skip to end.
+      p++;
+      UPDATE_STATE(s_parse_object_value_end);
+#endif
       break;
     }
     case s_parse_object_value_tru: {
-#ifdef C_JSON_PARSER_STRICT_MODE
+      // Only ran on JSON_PARCE_STRICT_MODE
       if (ch != 'u') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
       }
       UPDATE_STATE(s_parse_object_value_true);
       break;
-#else
-      UPDATE_STATE(s_parse_object_value_end);
-      break;
-#endif
     }
     case s_parse_object_value_true: {
-      // Only ran on C_JSON_PARSER_STRICT_MODE
+      // Only ran on JSON_PARCE_STRICT_MODE
       if (ch != 'e') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
@@ -725,40 +744,39 @@ static size_t do_json_parser_execute(json_parser *parser,
       REEXECUTE();
     }
     case s_parse_object_value_fa: {
-#ifdef C_JSON_PARSER_STRICT_MODE
+#ifdef JSON_PARCE_STRICT_MODE
       if (ch != 'a') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
       }
-#endif
       UPDATE_STATE(s_parse_object_value_fal);
+#else
+      // If non-strict mode, skip to end.
+      p += 2;
+      UPDATE_STATE(s_parse_object_value_end);
+#endif
       break;
     }
     case s_parse_object_value_fal: {
-#ifdef C_JSON_PARSER_STRICT_MODE
+      // Only ran on JSON_PARCE_STRICT_MODE
       if (ch != 'l') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
       }
-#endif
       UPDATE_STATE(s_parse_object_value_fals);
       break;
     }
     case s_parse_object_value_fals: {
-#ifdef C_JSON_PARSER_STRICT_MODE
+      // Only ran on JSON_PARCE_STRICT_MODE
       if (ch != 's') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
       }
       UPDATE_STATE(s_parse_object_value_false);
       break;
-#else
-      UPDATE_STATE(s_parse_object_value_end);
-      break;
-#endif
     }
     case s_parse_object_value_false: {
-      // Only ran on C_JSON_PARSER_STRICT_MODE
+      // Only ran on JSON_PARCE_STRICT_MODE
       if (ch != 'e') {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
@@ -819,7 +837,7 @@ static size_t do_json_parser_execute(json_parser *parser,
           UPDATE_STATE(s_done);
         }
       }
-#ifdef C_JSON_PARSER_STRICT_MODE
+#ifdef JSON_PARCE_STRICT_MODE
       else if (!IS_WHITESPACE(ch)) {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
@@ -837,7 +855,7 @@ static size_t do_json_parser_execute(json_parser *parser,
           UPDATE_STATE(s_done);
         }
       }
-#ifdef C_JSON_PARSER_STRICT_MODE
+#ifdef JSON_PARCE_STRICT_MODE
       else if (!IS_WHITESPACE(ch)) {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
         goto error;
@@ -875,10 +893,6 @@ static size_t do_json_parser_execute(json_parser *parser,
     }
   }
 
-  if (deep) {
-    free(parser->current_depth);
-  }
-
   if (p_state != s_done) {
     // This may or may-not be an actual error.
     // The user may be sending in a partial buffer.
@@ -896,19 +910,19 @@ error:
   RETURN(p - data);
 }
 
-C_JSON_PARSER_API size_t json_parser_execute(json_parser *parser,
-                                             json_parser_callbacks *callbacks,
-                                             const char *data, size_t len) {
+JSON_PARCE_API size_t json_parser_execute(json_parser *parser,
+                                          json_parser_callbacks *callbacks,
+                                          const char *data, size_t len) {
   return do_json_parser_execute(parser, callbacks, data, len, 0);
 }
 
-C_JSON_PARSER_API size_t
-json_deep_parser_execute(json_parser *parser, json_parser_callbacks *callbacks,
-                         const char *data, size_t len) {
+JSON_PARCE_API size_t json_deep_parser_execute(json_parser *parser,
+                                               json_parser_callbacks *callbacks,
+                                               const char *data, size_t len) {
   return do_json_parser_execute(parser, callbacks, data, len, 1);
 }
 
-C_JSON_PARSER_API size_t
+JSON_PARCE_API size_t
 json_parser_execute_utf16(json_parser *parser, json_parser_callbacks *callbacks,
                           const char16_t *data, size_t len) {
   char *content = NULL;
@@ -927,7 +941,7 @@ json_parser_execute_utf16(json_parser *parser, json_parser_callbacks *callbacks,
   return retval;
 }
 
-C_JSON_PARSER_API size_t
+JSON_PARCE_API size_t
 json_parser_execute_utf32(json_parser *parser, json_parser_callbacks *callbacks,
                           const char32_t *data, size_t len) {
   char *content = NULL;
@@ -946,8 +960,9 @@ json_parser_execute_utf32(json_parser *parser, json_parser_callbacks *callbacks,
   return retval;
 }
 
-C_JSON_PARSER_API size_t json_parser_execute_file(
-    json_parser *parser, json_parser_callbacks *callbacks, const char *file) {
+static size_t do_json_parser_execute_file(json_parser *parser,
+                                          json_parser_callbacks *callbacks,
+                                          const char *file, int deep) {
 
   int encoding = UNKNOWN;
   size_t file_size = 0;
@@ -1024,9 +1039,21 @@ C_JSON_PARSER_API size_t json_parser_execute_file(
   }
   fclose(fp);
 
-  size_t retval = json_parser_execute(parser, callbacks, content, content_len);
+  size_t retval =
+      do_json_parser_execute(parser, callbacks, content, content_len, deep);
 
   free(content);
 
   return retval;
+}
+
+JSON_PARCE_API size_t json_parser_execute_file(json_parser *parser,
+                                               json_parser_callbacks *callbacks,
+                                               const char *file) {
+  return do_json_parser_execute_file(parser, callbacks, file, 0);
+}
+
+JSON_PARCE_API size_t json_deep_parser_execute_file(
+    json_parser *parser, json_parser_callbacks *callbacks, const char *file) {
+  return do_json_parser_execute_file(parser, callbacks, file, 1);
 }
