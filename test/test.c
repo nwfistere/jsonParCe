@@ -12,6 +12,8 @@
 #include <sys/stat.h>
 #endif
 
+static char *test_testname_string = NULL;
+
 static const char array_data[] =
     "[null,true,false,\"str\\\\ing\",{\"\":\"\\\\\"},[\"str\\\\\"],-1.23e15]";
 static const size_t array_data_len = sizeof(array_data) - 1;
@@ -23,93 +25,94 @@ static const char object_data[] =
     "\"object\":{\"\\\\\":\"\\\\\"}, \"array\":[\"\\\\\"]}";
 static const size_t object_data_len = sizeof(object_data) - 1;
 
+static int print_values(char* filename, int depth, char* parent, char* key, int index, int type, char* value);
+static int print_header();
 static void get_log_string(const size_t maxlen, const char *str, size_t len,
-                           char **retstr, size_t *retlen) {
-  *retstr = (char *)malloc((maxlen + 3 + 1) * sizeof(char));
-  memset(*retstr, 0, (maxlen + 3 + 1) * sizeof(char));
-  int j = 0;
-  for (int i = 0; ((i < len) && (j < maxlen)); i++) {
-    switch (str[i]) {
-    case '\n':
-      (*retstr)[j++] = '\\';
-      (*retstr)[j] = 'n';
-      break;
-    case '\r':
-      (*retstr)[j++] = '\\';
-      (*retstr)[j] = 'r';
-      break;
-    case '\t':
-      (*retstr)[j++] = '\\';
-      (*retstr)[j] = 't';
-      break;
-    case '\v':
-      (*retstr)[j++] = '\\';
-      (*retstr)[j] = 'v';
-      break;
-    case '\f':
-      (*retstr)[j++] = '\\';
-      (*retstr)[j] = 'f';
-      break;
-    default:
-      (*retstr)[j] = str[i];
-    }
-    j++;
-  }
-  if (len > maxlen) {
-    for (int i = 0; i < 3; i++) {
-      (*retstr)[j++] = '.';
-    }
-  }
-  *retlen = j;
-}
+                           char **retstr, size_t *retlen);
+static void print_retval(size_t retval, size_t expected, json_parce *parser);
+static void validate_value(JSON_TYPE type, const char *value, size_t value_length);
+
 
 int on_object_value_cb(json_parce *parser, const char *key, size_t key_length,
                        JSON_TYPE type, const char *value, size_t value_length) {
+#ifdef JSON_PARCE_ENABLE_TEST_DEBUG
+  char *log_value = NULL;
+  size_t log_value_len = 0;
+  char log_key[100] = {0};
+
+  get_log_string(10, value, value_length, &log_value, &log_value_len);
+  snprintf(log_key, key_length + 1, "%s", key);
+
+  print_values(test_testname_string, 0, "{ROOT}", log_key, -1, type, log_value);
+  free(log_value);
+#endif
+  validate_value(type, value, value_length);
   return 0;
 }
 
 int on_array_value_cb(json_parce *parser, unsigned int index, JSON_TYPE type,
                       const char *value, size_t value_length) {
+#ifdef JSON_PARCE_ENABLE_TEST_DEBUG
+  char *log_value = NULL;
+  size_t log_value_len = 0;
+  get_log_string(10, value, value_length, &log_value, &log_value_len);
+  
+  print_values(test_testname_string, 0, "[ROOT]", NULL, index, type, log_value);
+  free(log_value);
+#endif
+  validate_value(type, value, value_length);
   return 0;
 }
 
 int on_deep_array_value_cb(json_parce *parser, unsigned int index,
                            JSON_TYPE type, const char *value,
                            size_t value_length) {
+#ifdef JSON_PARCE_ENABLE_TEST_DEBUG
+  char *log_value = NULL;
+  size_t log_value_len = 0;
+  get_log_string(10, value, value_length, &log_value, &log_value_len);
+
+  char parent[100] = {0};
+  if (parser->current_depth->key) {
+    sprintf(parent, "%.*s", parser->current_depth->key_len, parser->current_depth->key);
+  } else if (parser->current_depth->depth > 0) {
+    sprintf(parent, "%d", (int)parser->current_depth->array_index);
+  } else {
+    sprintf(parent, "%s", "[ROOT]");
+  }
+  
+  print_values(test_testname_string, parser->current_depth->depth, parent, NULL, -1, type, log_value);
+  free(log_value);
+#endif
+  validate_value(type, value, value_length);
   return 0;
 }
 
 int on_deep_object_key_value_pair_cb(json_parce *parser, const char *key,
                                      size_t key_length, JSON_TYPE type,
                                      const char *value, size_t value_length) {
-  return 0;
-}
+#ifdef JSON_PARCE_ENABLE_TEST_DEBUG
+  char *log_value = NULL;
+  size_t log_value_len = 0;
+  get_log_string(10, value, value_length, &log_value, &log_value_len);
 
-static void print_retval(size_t retval, size_t expected, json_parce *parser) {
-  static int calls = 0;
-  calls++;
-  printf("%d) retval: %zd, expected: %zd\n", calls, retval, expected);
-  if ((retval != expected) || (parser->err != 0)) {
-    printf("%d) %s (%d) \n", calls, json_errno_messages[parser->err],
-           parser->err);
+  char parent[100] = {0};
+  char log_key[100] = {0};
+  if (parser->current_depth->key) {
+    sprintf(parent, "%.*s", parser->current_depth->key_len, parser->current_depth->key);
+  } else if (parser->current_depth->depth > 0) {
+    sprintf(parent, "%d", (int)parser->current_depth->array_index);
+  } else {
+    sprintf(parent, "%s", "{ROOT}");
   }
 
-  if (parser->state != JSON_PARCE_DONE_STATE) {
-    printf("%d) state is not done (38) state: %d \n", calls, parser->state);
-  }
+  snprintf(log_key, key_length + 1, "%s", key);
 
-  if (parser->line != 0) {
-#ifdef __func__
-    printf("%d) %s.%s(%d)\n\n", calls, parser->func, parser->file,
-           parser->line);
-#else
-    printf("%d) %s(%d)\n\n", calls, parser->file, parser->line);
+  print_values(test_testname_string, parser->current_depth->depth, parent, log_key, -1, type, log_value);
+  free(log_value);
 #endif
-  }
-
-  assert(retval == expected);
-  assert(parser->err == 0);
-  assert(parser->state == JSON_PARCE_DONE_STATE);
+  validate_value(type, value, value_length);
+  return 0;
 }
 
 int test_parsing();
@@ -125,18 +128,23 @@ int main() {
                                    .on_object_key_value_pair =
                                        on_deep_object_key_value_pair_cb};
 
+  print_header();
+
   // Test array
+  test_testname_string = "test array";
   json_parce_init(&parser);
   size_t retval = json_parce_execute(&parser, &cbs, array_data, array_data_len);
   print_retval(retval, array_data_len, &parser);
 
   // Test object
+  test_testname_string = "test object";
   json_parce_init(&parser);
   retval = json_parce_execute(&parser, &cbs, object_data, object_data_len);
   print_retval(retval, object_data_len, &parser);
 
   // Test deep array
   json_parce_init(&parser);
+  test_testname_string = "test deep array";
   retval =
       json_deep_parce_execute(&parser, &deep_cbs, array_data, array_data_len);
   print_retval(retval, array_data_len, &parser);
@@ -144,6 +152,7 @@ int main() {
 
   // Test deep object
   json_parce_init(&parser);
+  test_testname_string = "test deep object";
   retval =
       json_deep_parce_execute(&parser, &deep_cbs, object_data, object_data_len);
   print_retval(retval, object_data_len, &parser);
@@ -151,54 +160,64 @@ int main() {
 
   // 1
   json_parce_init(&parser);
+  test_testname_string = "utf-8.json";
   retval = json_parce_execute_file(&parser, &cbs, "./encodings/utf-8.json");
   print_retval(retval, 48, &parser);
 
   // 2
   json_parce_init(&parser);
+  test_testname_string = "utf-8BOM.json";
   retval = json_parce_execute_file(&parser, &cbs, "./encodings/utf-8BOM.json");
   print_retval(retval, 51, &parser);
 
   // 3
   json_parce_init(&parser);
+  test_testname_string = "utf-16LE.json";
   retval = json_parce_execute_file(&parser, &cbs, "./encodings/utf-16LE.json");
   print_retval(retval, 48, &parser);
 
   // 4
   json_parce_init(&parser);
+  test_testname_string = "utf-16BE.json";
   retval = json_parce_execute_file(&parser, &cbs, "./encodings/utf-16BE.json");
   print_retval(retval, 48, &parser);
 
   // 5
   json_parce_init(&parser);
+  test_testname_string = "utf-16LEBOM.json";
   retval =
       json_parce_execute_file(&parser, &cbs, "./encodings/utf-16LEBOM.json");
   print_retval(retval, 51, &parser);
 
   // 6
   json_parce_init(&parser);
+  test_testname_string = "utf-16BEBOM.json";
   retval =
       json_parce_execute_file(&parser, &cbs, "./encodings/utf-16BEBOM.json");
   print_retval(retval, 51, &parser);
 
   // 7
   json_parce_init(&parser);
+  test_testname_string = "utf-32LE.json";
   retval = json_parce_execute_file(&parser, &cbs, "./encodings/utf-32LE.json");
   print_retval(retval, 48, &parser);
 
   // 8
   json_parce_init(&parser);
+  test_testname_string = "utf-32BE.json";
   retval = json_parce_execute_file(&parser, &cbs, "./encodings/utf-32BE.json");
   print_retval(retval, 48, &parser);
 
   // 9
   json_parce_init(&parser);
+  test_testname_string = "utf-32LEBOM.json";
   retval =
       json_parce_execute_file(&parser, &cbs, "./encodings/utf-32LEBOM.json");
   print_retval(retval, 51, &parser);
 
   // 10
   json_parce_init(&parser);
+  test_testname_string = "utf-32BEBOM.json";
   retval =
       json_parce_execute_file(&parser, &cbs, "./encodings/utf-32BEBOM.json");
   print_retval(retval, 51, &parser);
@@ -305,56 +324,24 @@ int test_parsing() {
   return 0;
 }
 
-static char *test_JSONTestSuite_file = NULL;
-
-static void validate_value(JSON_TYPE type, const char *value,
-                           size_t value_length) {
-  switch (type) {
-  case NUMBER: {
-    json_parce_int_t rint;
-    json_parce_real_t real;
-    int ret = json_parce_int(value, value_length, &rint);
-    if (ret != 0) {
-      ret = json_parce_real(value, value_length, &real);
-    }
-    assert(ret == 0);
-    break;
-  }
-  case STRING: {
-    char *str = json_parce_string(value, value_length);
-    assert(str != NULL);
-    free(str);
-    break;
-  }
-  case BOOL_TYPE: {
-    int ret = json_parce_bool(value);
-    assert((ret == 0) || (ret == 1));
-    break;
-  }
-  default: {
-  }
-  }
-}
-
 int test_JSONTestSuite_array(json_parce *parser, unsigned int index,
                              JSON_TYPE type, const char *value,
                              size_t value_length) {
 #ifdef JSON_PARCE_ENABLE_TEST_DEBUG
-  printf("%65s", test_JSONTestSuite_file);
-  printf("%10d", parser->current_depth->depth);
-  if (parser->current_depth->key) {
-    printf("%10.*s", (int)parser->current_depth->key_len,
-           parser->current_depth->key);
-  } else if (parser->current_depth->depth > 0) {
-    printf("%10d", (int)parser->current_depth->array_index);
-  } else {
-    printf("%10s", "[ROOT]");
-  }
   char *log_value = NULL;
   size_t log_value_len = 0;
   get_log_string(10, value, value_length, &log_value, &log_value_len);
-  printf("%10s%10d%10d%15.*s\n", "-", index, type, (int)log_value_len,
-         log_value);
+
+  char parent[100] = {0};
+  if (parser->current_depth->key) {
+    sprintf(parent, "%.*s", parser->current_depth->key_len, parser->current_depth->key);
+  } else if (parser->current_depth->depth > 0) {
+    sprintf(parent, "%d", (int)parser->current_depth->array_index);
+  } else {
+    sprintf(parent, "%s", "[ROOT]");
+  }
+  
+  print_values(test_testname_string, parser->current_depth->depth, parent, NULL, index, type, log_value);
   free(log_value);
 #endif
   validate_value(type, value, value_length);
@@ -365,21 +352,23 @@ int test_JSONTestSuite_object(json_parce *parser, const char *key,
                               size_t key_length, JSON_TYPE type,
                               const char *value, size_t value_length) {
 #ifdef JSON_PARCE_ENABLE_TEST_DEBUG
-  printf("%65s", test_JSONTestSuite_file);
-  printf("%10d", parser->current_depth->depth);
-  if (parser->current_depth->key) {
-    printf("%10.*s", (int)parser->current_depth->key_len,
-           parser->current_depth->key);
-  } else if (parser->current_depth->depth > 0) {
-    printf("%10d", (int)parser->current_depth->array_index);
-  } else {
-    printf("%10s", "{ROOT}");
-  }
   char *log_value = NULL;
   size_t log_value_len = 0;
   get_log_string(10, value, value_length, &log_value, &log_value_len);
-  printf("%10.*s%10s%10d%15.*s\n", (int)key_length, key, "-", type,
-         (int)log_value_len, log_value);
+
+  char parent[100] = {0};
+  char log_key[100] = {0};
+  if (parser->current_depth->key) {
+    sprintf(parent, "%.*s", parser->current_depth->key_len, parser->current_depth->key);
+  } else if (parser->current_depth->depth > 0) {
+    sprintf(parent, "%d", (int)parser->current_depth->array_index);
+  } else {
+    sprintf(parent, "%s", "{ROOT}");
+  }
+
+  snprintf(log_key, key_length + 1, "%s", key);
+
+  print_values(test_testname_string, parser->current_depth->depth, parent, log_key, -1, type, log_value);
   free(log_value);
 #endif
   validate_value(type, value, value_length);
@@ -398,11 +387,6 @@ int test_JSONTestSuite() {
   json_parce_callbacks deep_cbs = {.on_array_value = test_JSONTestSuite_array,
                                    .on_object_key_value_pair =
                                        test_JSONTestSuite_object};
-
-#ifdef JSON_PARCE_ENABLE_TEST_DEBUG
-  printf("%65s%10s%10s%10s%10s%10s%15s\n", "Filename", "Depth", "Parent", "Key",
-         "Index", "Type", "Value");
-#endif
 
 #ifdef _WIN32
   WIN32_FIND_DATA fd;
@@ -453,7 +437,7 @@ int test_JSONTestSuite() {
     filename = entry->d_name;
 #endif // WIN32
 
-    test_JSONTestSuite_file = filename;
+    test_testname_string = filename;
 
     json_parce_init(&parser);
     size_t retval = json_deep_parce_execute_file(&parser, &deep_cbs, filepath);
@@ -535,4 +519,133 @@ int test_JSONTestSuite() {
 #endif // WIN32
 
   return retval;
+}
+
+
+int print_values(char* filename, int depth, char* parent, char* key, int index, int type, char* value) {
+#ifdef JSON_PARCE_ENABLE_TEST_DEBUG
+#ifdef _WIN32
+  SetConsoleOutputCP(65001); // Set windows output to utf-8
+#endif
+  printf("%65s", filename ? filename : "-");  
+  printf("%10d", depth);
+  printf("%10s", parent ? parent : "-");
+  printf("%10s", key ? key : "-");
+  if (index > -1) {
+    printf("%10d", index);
+  } else {
+    printf("%10s", "-");
+  }
+  printf("%10d", type);
+  printf("%15s\n", value);
+#endif
+  return 0;
+}
+
+int print_header() {
+#ifdef JSON_PARCE_ENABLE_TEST_DEBUG
+  printf("%65s%10s%10s%10s%10s%10s%15s\n", "Filename", "Depth", "Parent", "Key",
+          "Index", "Type", "Value");
+#endif
+  return 0;
+}
+
+void get_log_string(const size_t maxlen, const char *str, size_t len, char **retstr, size_t *retlen) {
+  *retstr = (char *)malloc((maxlen + 3 + 1) * sizeof(char));
+  memset(*retstr, 0, (maxlen + 3 + 1) * sizeof(char));
+  int j = 0;
+  for (int i = 0; ((i < len) && (j < maxlen)); i++) {
+    switch (str[i]) {
+    case '\n':
+      (*retstr)[j++] = '\\';
+      (*retstr)[j] = 'n';
+      break;
+    case '\r':
+      (*retstr)[j++] = '\\';
+      (*retstr)[j] = 'r';
+      break;
+    case '\t':
+      (*retstr)[j++] = '\\';
+      (*retstr)[j] = 't';
+      break;
+    case '\v':
+      (*retstr)[j++] = '\\';
+      (*retstr)[j] = 'v';
+      break;
+    case '\f':
+      (*retstr)[j++] = '\\';
+      (*retstr)[j] = 'f';
+      break;
+    default:
+      (*retstr)[j] = str[i];
+    }
+    j++;
+  }
+  if (len > maxlen) {
+    for (int i = 0; i < 3; i++) {
+      (*retstr)[j++] = '.';
+    }
+  }
+  *retlen = j;
+}
+
+void print_retval(size_t retval, size_t expected, json_parce *parser) {
+  static int calls = 0;
+  calls++;
+  if (retval != expected) {
+    printf("%d) retval: %zd, expected: %zd\n", calls, retval, expected);
+  }
+  if ((retval != expected) || (parser->err != 0)) {
+    printf("%d) %s (%d) \n", calls, json_errno_messages[parser->err],
+           parser->err);
+  }
+
+  if (parser->state != JSON_PARCE_DONE_STATE) {
+    printf("%d) state is not done (38) state: %d \n", calls, parser->state);
+  }
+
+  if (parser->line != 0) {
+#ifdef __func__
+    printf("%d) %s.%s(%d)\n\n", calls, parser->func, parser->file,
+           parser->line);
+#else
+    printf("%d) %s(%d)\n\n", calls, parser->file, parser->line);
+#endif
+  }
+
+  assert(retval == expected);
+  assert(parser->err == 0);
+  assert(parser->state == JSON_PARCE_DONE_STATE);
+}
+
+void validate_value(JSON_TYPE type, const char *value,
+                           size_t value_length) {
+  switch (type) {
+  case NUMBER: {
+    json_parce_int_t rint;
+    json_parce_real_t real;
+    int ret = json_parce_int(value, value_length, &rint);
+    if (ret != 0) {
+      ret = json_parce_real(value, value_length, &real);
+    }
+    if (ret != 0) {
+      fprintf(stderr, "\n\n [%s] - Failed to parse number: <%.*s>\n", test_testname_string, (int)value_length, value);
+    }
+    assert(ret == 0);
+    break;
+  }
+  case STRING: {
+    char *str = json_parce_string(value, value_length);
+    assert(str != NULL);
+    free(str);
+    break;
+  }
+  case BOOL_TYPE: {
+    int ret = json_parce_bool(value);
+    assert((ret == 0) || (ret == 1));
+    break;
+  }
+  default: {
+  }
+  }
 }

@@ -96,13 +96,22 @@ typedef struct json_parce {
                  // at this point. (zero means no max depth.)
 
 #ifdef JSON_PARCE_STRICT_MODE
-  // numeric tests
-  int f_minus : 2;
-  int f_dec : 2;
-  int f_e : 1;
+  // Flags for the current state
+  int fs_significand : 1;
+  int fs_fraction : 1;
+  int fs_exponent : 1;
+
+  // Flags for the checks in the state.
+  int f_minus : 1;
+  // int f_dec : 1;
+  // int f_e : 1;
   int f_nonzero : 1;
   int f_zero : 1;
-  int f_plus : 1;
+  // int f_plus : 1;
+
+  // Not sure if I want to make this universal or just keep it for the unicode handling.
+  // Could clean up a lot of code but may make it less readable? Ha ha ha
+  unsigned int return_state;
 #endif
 
   // debug help

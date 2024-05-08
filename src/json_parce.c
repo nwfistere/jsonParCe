@@ -84,17 +84,40 @@
   if (CHAR == QM) {                                                            \
     UPDATE_STATE(NEW_STATE);                                                   \
   } else if (ch == '\\') {                                                     \
-    p++;                                                                       \
+    HANDLE_ESCAPED_CHARACTER(CHAR)                                                                       \
   }                                                                            \
+  CHECK_FOR_UNESCAPED_CHARACTERS(CHAR)  \
   break;
+
+#ifdef JSON_PARCE_STRICT_MODE
+#define CHECK_FOR_UNESCAPED_CHARACTERS(CHAR) \
+  if (SHOULD_ESCAPE(CHAR)) { \
+    SET_ERRNO(ERRNO_INVALID_CHARACTER);                                        \
+    goto error; \
+  }
+#else
+#define CHECK_FOR_UNESCAPED_CHARACTERS(CHAR)
+#endif
+
+#ifdef JSON_PARCE_STRICT_MODE
+#define HANDLE_ESCAPED_CHARACTER(CHAR) \
+  parser->return_state = p_state; /* save current state to go back after escaped character */ \
+  UPDATE_STATE(s_handle_escaped_character); \
+  break;
+#else
+#define HANDLE_ESCAPED_CHARACTER(CHAR) p++; \
+  break;
+#endif
+
 
 #define FIND_STRING_END_REEXECUTE(CHAR, NEW_STATE)                             \
   if (CHAR == QM) {                                                            \
     UPDATE_STATE(NEW_STATE);                                                   \
     REEXECUTE();                                                               \
   } else if (ch == '\\') {                                                     \
-    p++;                                                                       \
+    HANDLE_ESCAPED_CHARACTER(CHAR)                                                                       \
   }                                                                            \
+  CHECK_FOR_UNESCAPED_CHARACTERS(CHAR)  \
   break;
 
 #define ARRAY_CALLBACK() P_ARRAY_CALLBACK((p - parser->array_item_mark) + 1)
@@ -122,6 +145,9 @@
    IS_NUMERIC(c))
 #define UPDATE_STATE(V) p_state = (enum state)(V)
 #define REEXECUTE() goto reexecute
+#define SHOULD_ESCAPE(CH) (CH >= '\x00' && CH <= '\x1F')
+#define VALID_ESCAPED_CHARACTERS_1(CH) (((CH) == 'n') || ((CH) == 'r') || ((CH) == '\\') || ((CH) == 't') || ((CH) == 'u') || ((CH) == '/') || ((CH) == 'b') || ((CH) == 'f') || ((CH) == '"'))
+#define VALID_ESCAPED_CHARACTERS_2_5(CH) (((CH) >= '0' && (CH) <= '9') || ((CH) >= 'a' && (CH) <= 'f') || ((CH) >= 'A' && (CH) <= 'F'))
 
 #define GET_TYPE(C, T)                                                         \
   switch (C) {                                                                 \
@@ -224,75 +250,29 @@
   }
 
 #ifdef JSON_PARCE_STRICT_MODE
-#define FAIL_NUMERIC()                                                         \
-  SET_ERRNO(ERRNO_INVALID_CHARACTER);                                          \
-  goto error
 
-#define RESET_NUMERIC()                                                        \
-  parser->f_minus = 0;                                                         \
-  parser->f_dec = 0;                                                           \
-  parser->f_e = 0;                                                             \
+#define RESET_NUMERIC_FLAGS() \
   parser->f_nonzero = 0;                                                       \
+  parser->f_minus = 0; \
   parser->f_zero = 0
 
-#define CHECK_NUMERIC(c)                                                       \
-  switch (c) {                                                                 \
-  case 'e':                                                                    \
-  case 'E': {                                                                  \
-    if (parser->f_e) {                                                         \
-      FAIL_NUMERIC();                                                          \
-    }                                                                          \
-    parser->f_e = 1;                                                           \
-    break;                                                                     \
-  }                                                                            \
-  case '.': {                                                                  \
-    if ((!parser->f_e && parser->f_dec) || (parser->f_dec >= 2)) {             \
-      FAIL_NUMERIC();                                                          \
-    }                                                                          \
-    parser->f_dec++;                                                           \
-    break;                                                                     \
-  }                                                                            \
-  case '-': {                                                                  \
-    if ((!parser->f_e && parser->f_dec) || (parser->f_minus >= 2)) {           \
-      FAIL_NUMERIC();                                                          \
-    }                                                                          \
-    break;                                                                     \
-  }                                                                            \
-  case '+': {                                                                  \
-    if (parser->f_plus) {                                                      \
-      FAIL_NUMERIC();                                                          \
-    }                                                                          \
-    parser->f_plus = 1;                                                        \
-    break;                                                                     \
-  }                                                                            \
-  case '0': {                                                                  \
-    if (!parser->f_zero) {                                                     \
-      parser->f_zero = 1;                                                      \
-    }                                                                          \
-    break;                                                                     \
-  }                                                                            \
-  case '1':                                                                    \
-  case '2':                                                                    \
-  case '3':                                                                    \
-  case '4':                                                                    \
-  case '5':                                                                    \
-  case '6':                                                                    \
-  case '7':                                                                    \
-  case '8':                                                                    \
-  case '9': {                                                                  \
-    if (!parser->f_nonzero) {                                                  \
-      parser->f_nonzero = 1;                                                   \
-      /* leading zero */                                                       \
-      if (parser->f_zero && !parser->f_dec && !parser->f_e) {                  \
-        FAIL_NUMERIC();                                                        \
-      }                                                                        \
-    }                                                                          \
-    break;                                                                     \
-  }                                                                            \
-  default: {                                                                   \
-    FAIL_NUMERIC();                                                            \
-  }                                                                            \
+#define RESET_NUMERIC_STATE()                                                        \
+  parser->fs_significand = 0; \
+  parser->fs_fraction = 0; \
+  parser->fs_exponent = 0; \
+  RESET_NUMERIC_FLAGS()
+
+
+#define CHECK_FINAL_NUMERIC_STATE() \
+  if ((parser->fs_fraction || parser->fs_exponent) && !parser->f_nonzero) { \
+    SET_ERRNO(ERRNO_INVALID_CHARACTER);                                        \
+    goto error;                                                                \
+    /*No number, just minus */ \
+  } else if (parser->f_minus && !parser->f_nonzero && !parser->f_zero) { \
+    SET_ERRNO(ERRNO_INVALID_CHARACTER);                                        \
+    goto error; \
   }
+
 #endif
 
 enum state {
@@ -346,6 +326,14 @@ enum state {
   s_parse_BOM_EF,
   s_parse_BOM_BB,
   s_parse_BOM_BF,
+  s_handle_escaped_character,
+  s_handle_escaped_unicode_character_0,
+  s_handle_escaped_unicode_character_1,
+  s_handle_escaped_unicode_character_2,
+  s_handle_escaped_unicode_character_3,
+  s_handle_numeric_significand,
+  s_handle_numeric_fraction,
+  s_handle_numeric_exponent
 };
 
 static void json_depth_init(json_depth *depth) {
@@ -625,19 +613,26 @@ static size_t do_json_parce_execute(json_parce *parser,
     }
     case s_parse_array_numeric: {
       if (ch == COMMA || ch == CB || IS_WHITESPACE(ch)) {
+#ifdef JSON_PARCE_STRICT_MODE
+        CHECK_FINAL_NUMERIC_STATE();
+        RESET_NUMERIC_STATE();
+#endif
         ARRAY_CALLBACK_NOADVANCE();
         UPDATE_STATE(s_parse_array_between_values);
-#ifdef JSON_PARCE_STRICT_MODE
-        RESET_NUMERIC();
-#endif
         REEXECUTE();
       }
 #ifdef JSON_PARCE_STRICT_MODE
-      CHECK_NUMERIC(ch);
-      // if (!IS_NUMERIC(ch)) {
-      //   SET_ERRNO(ERRNO_INVALID_CHARACTER);
-      //   goto error;
-      // }
+      else {
+        parser->return_state = s_parse_array_numeric;
+        if (parser->fs_exponent) {
+          UPDATE_STATE(s_handle_numeric_exponent);
+        } else if (parser->fs_fraction) {
+          UPDATE_STATE(s_handle_numeric_fraction);
+        } else {
+          UPDATE_STATE(s_handle_numeric_significand);
+        }
+        REEXECUTE();
+      }
 #endif
       break;
     }
@@ -730,19 +725,26 @@ static size_t do_json_parce_execute(json_parce *parser,
     }
     case s_parse_object_value_numeric: {
       if (ch == COMMA || ch == CCB || IS_WHITESPACE(ch)) {
+#ifdef JSON_PARCE_STRICT_MODE
+        CHECK_FINAL_NUMERIC_STATE();
+        RESET_NUMERIC_STATE();
+#endif
         OBJECT_CALLBACK_NOADVANCE()
         UPDATE_STATE(s_parse_object_between_values);
-#ifdef JSON_PARCE_STRICT_MODE
-        RESET_NUMERIC();
-#endif
         REEXECUTE();
       }
 #ifdef JSON_PARCE_STRICT_MODE
-      CHECK_NUMERIC(ch);
-      // if (!IS_NUMERIC(ch)) {
-      //   SET_ERRNO(ERRNO_INVALID_CHARACTER);
-      //   goto error;
-      // }
+      else {
+        parser->return_state = s_parse_object_value_numeric;
+        if (parser->fs_exponent) {
+          UPDATE_STATE(s_handle_numeric_exponent);
+        } else if (parser->fs_fraction) {
+          UPDATE_STATE(s_handle_numeric_fraction);
+        } else {
+          UPDATE_STATE(s_handle_numeric_significand);
+        }
+        REEXECUTE();
+      }
 #endif
       break;
     }
@@ -957,6 +959,168 @@ static size_t do_json_parce_execute(json_parce *parser,
       UPDATE_STATE(s_start);
       break;
     }
+    case s_handle_escaped_character: {
+      // Only ran on JSON_PARCE_STRICT_MODE
+      if (!VALID_ESCAPED_CHARACTERS_1(ch)) {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+      if (ch == 'u') {
+        UPDATE_STATE(s_handle_escaped_unicode_character_0);
+      } else {
+        UPDATE_STATE(parser->return_state);
+        parser->return_state = s_dead;
+      }
+      break;
+    }
+    case s_handle_escaped_unicode_character_0:
+    case s_handle_escaped_unicode_character_1:
+    case s_handle_escaped_unicode_character_2:
+    case s_handle_escaped_unicode_character_3: {
+      // Only ran on JSON_PARCE_STRICT_MODE
+      if (!VALID_ESCAPED_CHARACTERS_2_5(ch)) {
+        SET_ERRNO(ERRNO_INVALID_CHARACTER);
+        goto error;
+      }
+      if (p_state == s_handle_escaped_unicode_character_3) {
+        // Go back to original state.
+        UPDATE_STATE(parser->return_state);
+        parser->return_state = s_dead;
+      } else {
+        p_state++;
+      }
+      break;
+    }
+    case s_handle_numeric_significand: {
+      // Only ran on JSON_PARCE_STRICT_MODE
+#ifdef JSON_PARCE_STRICT_MODE
+      switch(ch) {
+        case '-': {
+          if (parser->f_minus || parser->f_zero || parser->f_nonzero) {
+            SET_ERRNO(ERRNO_INVALID_CHARACTER);
+            goto error;
+          }
+          parser->f_minus = 1;
+          break;
+        }
+        case '0': {
+          parser->f_zero = 1;
+          break;
+        }
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9': {
+          if (parser->f_zero && (!parser->f_nonzero)) {
+            // Leading zero.
+            SET_ERRNO(ERRNO_INVALID_CHARACTER);
+            goto error;
+          }
+          parser->f_nonzero = 1;
+          break;
+        }
+        case '.': {
+          if ((!parser->f_zero) && (!parser->f_nonzero)) {
+            // No leading number
+            SET_ERRNO(ERRNO_INVALID_CHARACTER);
+            goto error;
+          }
+          parser->fs_fraction = 1;
+          RESET_NUMERIC_FLAGS();
+          break;
+        }
+        case 'e':
+        case 'E': {
+          if ((!parser->f_zero) && (!parser->f_nonzero)) {
+            SET_ERRNO(ERRNO_INVALID_CHARACTER);
+            goto error;
+          }
+          parser->fs_exponent = 1;
+          RESET_NUMERIC_FLAGS();
+          break;
+        }
+        default: {
+          SET_ERRNO(ERRNO_INVALID_CHARACTER);
+          goto error;
+        }
+      }
+      UPDATE_STATE(parser->return_state);
+      parser->return_state = s_dead;
+      break;
+    }
+    case s_handle_numeric_fraction: {
+      switch(ch) {
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9': {
+          parser->f_nonzero = 1;
+          break;
+        }
+        case 'e':
+        case 'E': {
+          if (!parser->f_nonzero) {
+            SET_ERRNO(ERRNO_INVALID_CHARACTER);
+            goto error;
+          }
+          parser->fs_exponent = 1;
+          RESET_NUMERIC_FLAGS();
+          break;
+        }
+        default: {
+          SET_ERRNO(ERRNO_INVALID_CHARACTER);
+          goto error;
+        }
+      }
+      UPDATE_STATE(parser->return_state);
+      parser->return_state = s_dead;
+      break;
+    }
+    case s_handle_numeric_exponent: {
+      switch(ch) {
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9': {
+          parser->f_nonzero = 1;
+          break;
+        }
+        case '+':
+        case '-': {
+          if (parser->f_minus || parser->f_nonzero) {
+            SET_ERRNO(ERRNO_INVALID_CHARACTER);
+            goto error;
+          }
+          parser->f_minus = 1;
+          break;
+        }
+        default: {
+          SET_ERRNO(ERRNO_INVALID_CHARACTER);
+          goto error;
+        }
+      }
+      UPDATE_STATE(parser->return_state);
+      parser->return_state = s_dead;
+      break;
+    }
+#endif
     }
   }
 
@@ -974,11 +1138,11 @@ error:
     SET_ERRNO(ERRNO_UNKNOWN);
   }
 
-  fprintf(stderr, "%s(%d) - %s\n", parser->file, parser->line,
-          json_errno_messages[parser->err]);
-  if (parser->err == ERRNO_INVALID_CHARACTER) {
-    fprintf(stderr, "Invalid character: \"%c\"\n", *p);
-  }
+  // fprintf(stderr, "%s(%d) - %s\n", parser->file, parser->line,
+  //         json_errno_messages[parser->err]);
+  // if (parser->err == ERRNO_INVALID_CHARACTER) {
+  //   fprintf(stderr, "Invalid character: \"%c\"\n", *p);
+  // }
 
   RETURN(p - data);
 }
