@@ -48,8 +48,8 @@ int main(void) {
 
   json_parce parser;
   json_parce_callbacks cbs = {.on_array_value = on_typed_array_value_cb,
-                               .on_object_key_value_pair =
-                                   on_typed_object_value_cb};
+                              .on_object_key_value_pair =
+                                  on_typed_object_value_cb};
 
   printf("%10s%10s%10s%10s%10s%10s\n", "Depth", "Parent", "Key", "Index",
          "Type", "Value");
@@ -64,8 +64,7 @@ int main(void) {
   printf("%10s%10s%10s%10s%10s%10s\n", "Depth", "Parent", "Key", "Index",
          "Type", "Value");
   json_parce_init(&parser);
-  retval =
-      json_deep_parce_execute(&parser, &cbs, object_data, object_data_len);
+  retval = json_deep_parce_execute(&parser, &cbs, object_data, object_data_len);
   assert(retval == object_data_len);
   (void)retval;
 

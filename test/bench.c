@@ -17,7 +17,7 @@ static int on_array(json_parce *parser, unsigned int index, JSON_TYPE type,
 }
 
 static json_parce_callbacks cbs = {.on_object_key_value_pair = NULL,
-                                    .on_array_value = on_array};
+                                   .on_array_value = on_array};
 
 /* 8 gb */
 static const int64_t kBytes = 8LL << 30;

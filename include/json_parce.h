@@ -1,10 +1,10 @@
 #ifndef JSON_PARCE_H
 #define JSON_PARCE_H
 
+#include <float.h>
+#include <limits.h>
 #include <stddef.h>
 #include <uchar.h>
-#include <limits.h>
-#include <float.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,7 +47,7 @@ typedef enum JSON_TYPE {
   XX(FILE_OPEN_FAILURE, "failed to open file")                                 \
   XX(INVALID_ENCODING, "invalid encoding")                                     \
   XX(INCOMPLETE_DATA, "buffer ended before end of json")                       \
-  XX(CALLBACK_REQUESTED_STOP, "stop requested by callback") \
+  XX(CALLBACK_REQUESTED_STOP, "stop requested by callback")                    \
   XX(OUT_OF_RANGE, "value is out of range")
 
 #define ERRNO_GEN(n, s) ERRNO_##n,
@@ -102,6 +102,7 @@ typedef struct json_parce {
   int f_e : 1;
   int f_nonzero : 1;
   int f_zero : 1;
+  int f_plus : 1;
 #endif
 
   // debug help
@@ -133,32 +134,34 @@ JSON_PARCE_API void json_parce_init(json_parce *parser);
 JSON_PARCE_API void json_parce_free(json_parce *parser);
 
 JSON_PARCE_API size_t json_parce_execute(json_parce *parser,
-                                          json_parce_callbacks *callbacks,
-                                          const char *data, size_t len);
+                                         json_parce_callbacks *callbacks,
+                                         const char *data, size_t len);
 
 JSON_PARCE_API size_t json_deep_parce_execute(json_parce *parser,
+                                              json_parce_callbacks *callbacks,
+                                              const char *data, size_t len);
+
+JSON_PARCE_API size_t json_parce_execute_utf16(json_parce *parser,
                                                json_parce_callbacks *callbacks,
-                                               const char *data, size_t len);
+                                               const char16_t *data,
+                                               size_t len);
 
-JSON_PARCE_API size_t
-json_parce_execute_utf16(json_parce *parser, json_parce_callbacks *callbacks,
-                          const char16_t *data, size_t len);
-
-JSON_PARCE_API size_t
-json_parce_execute_utf32(json_parce *parser, json_parce_callbacks *callbacks,
-                          const char32_t *data, size_t len);
+JSON_PARCE_API size_t json_parce_execute_utf32(json_parce *parser,
+                                               json_parce_callbacks *callbacks,
+                                               const char32_t *data,
+                                               size_t len);
 
 JSON_PARCE_API size_t json_parce_execute_file(json_parce *parser,
-                                               json_parce_callbacks *callbacks,
-                                               const char *file);
+                                              json_parce_callbacks *callbacks,
+                                              const char *file);
 
 JSON_PARCE_API size_t json_parce_execute(json_parce *parser,
-                                          json_parce_callbacks *callbacks,
-                                          const char *data, size_t len);
+                                         json_parce_callbacks *callbacks,
+                                         const char *data, size_t len);
 
 JSON_PARCE_API size_t json_parce_execute_file(json_parce *parser,
-                                               json_parce_callbacks *callbacks,
-                                               const char *file);
+                                              json_parce_callbacks *callbacks,
+                                              const char *file);
 
 JSON_PARCE_API size_t json_deep_parce_execute_file(
     json_parce *parser, json_parce_callbacks *callbacks, const char *file);
@@ -167,23 +170,28 @@ JSON_PARCE_API size_t json_deep_parce_execute_file(
 #define JSON_PARCE_REAL double
 #define JSON_PARCE_REAL_MAX DBL_MAX
 #define JSON_PARCE_REAL_MIN DBL_MIN
-#define JSON_PARCE_REAL_MAX_DIG (3 + DBL_MANT_DIG - DBL_MIN_EXP) // Maximum number of characters
+#define JSON_PARCE_REAL_MAX_DIG                                                \
+  (3 + DBL_MANT_DIG - DBL_MIN_EXP) // Maximum number of characters
 #endif
 
 #ifndef JSON_PARCE_INT
 #define JSON_PARCE_INT long long
 #define JSON_PARCE_INT_MAX LLONG_MAX
 #define JSON_PARCE_INT_MIN LLONG_MIN
-#define JSON_PARCE_INT_MAX_DIG ((3 * sizeof(JSON_PARCE_INT)) + 2) // Roughly the maximum number of characters in JSON_PARCE_INT
+#define JSON_PARCE_INT_MAX_DIG                                                 \
+  ((3 * sizeof(JSON_PARCE_INT)) +                                              \
+   2) // Roughly the maximum number of characters in JSON_PARCE_INT
 #endif
 
 typedef JSON_PARCE_REAL json_parce_real_t;
 typedef JSON_PARCE_INT json_parce_int_t;
 
-JSON_PARCE_API char* json_parce_string(const char* str, size_t len);
-JSON_PARCE_API int json_parce_bool(const char* str);
-JSON_PARCE_API int json_parce_real(const char* str, size_t len, json_parce_real_t* ret);
-JSON_PARCE_API int json_parce_int(const char* str, size_t len, json_parce_int_t* ret);
+JSON_PARCE_API char *json_parce_string(const char *str, size_t len);
+JSON_PARCE_API int json_parce_bool(const char *str);
+JSON_PARCE_API int json_parce_real(const char *str, size_t len,
+                                   json_parce_real_t *ret);
+JSON_PARCE_API int json_parce_int(const char *str, size_t len,
+                                  json_parce_int_t *ret);
 
 #ifdef __cplusplus
 }

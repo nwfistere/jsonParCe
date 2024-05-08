@@ -31,13 +31,12 @@ static const size_t object_data_len = sizeof(object_data) - 1;
 int main(void) {
   json_parce parser;
   json_parce_callbacks cbs = {.on_array_value = on_typed_array_value_cb,
-                               .on_object_key_value_pair =
-                                   on_typed_object_value_cb};
+                              .on_object_key_value_pair =
+                                  on_typed_object_value_cb};
 
   printf("%10s%10s%10s%20s\n", "Key", "Index", "Type", "Value");
   json_parce_init(&parser);
-  size_t retval =
-      json_parce_execute(&parser, &cbs, array_data, array_data_len);
+  size_t retval = json_parce_execute(&parser, &cbs, array_data, array_data_len);
   assert(retval == array_data_len);
   (void)retval;
 

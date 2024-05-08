@@ -119,16 +119,15 @@ int main() {
   json_parce parser;
 
   json_parce_callbacks cbs = {.on_array_value = on_array_value_cb,
-                               .on_object_key_value_pair = on_object_value_cb};
+                              .on_object_key_value_pair = on_object_value_cb};
 
   json_parce_callbacks deep_cbs = {.on_array_value = on_deep_array_value_cb,
-                                    .on_object_key_value_pair =
-                                        on_deep_object_key_value_pair_cb};
+                                   .on_object_key_value_pair =
+                                       on_deep_object_key_value_pair_cb};
 
   // Test array
   json_parce_init(&parser);
-  size_t retval =
-      json_parce_execute(&parser, &cbs, array_data, array_data_len);
+  size_t retval = json_parce_execute(&parser, &cbs, array_data, array_data_len);
   print_retval(retval, array_data_len, &parser);
 
   // Test object
@@ -145,8 +144,8 @@ int main() {
 
   // Test deep object
   json_parce_init(&parser);
-  retval = json_deep_parce_execute(&parser, &deep_cbs, object_data,
-                                    object_data_len);
+  retval =
+      json_deep_parce_execute(&parser, &deep_cbs, object_data, object_data_len);
   print_retval(retval, object_data_len, &parser);
   json_parce_free(&parser);
 
@@ -289,8 +288,8 @@ static int test_parsing_on_object_value_cb(json_parce *parser, const char *key,
 
 int test_parsing() {
   json_parce_callbacks cbs = {.on_array_value = test_parsing_on_array_value_cb,
-                               .on_object_key_value_pair =
-                                   test_parsing_on_object_value_cb};
+                              .on_object_key_value_pair =
+                                  test_parsing_on_object_value_cb};
 
   json_parce parser;
   json_parce_init(&parser);
@@ -308,30 +307,32 @@ int test_parsing() {
 
 static char *test_JSONTestSuite_file = NULL;
 
-static void validate_value(JSON_TYPE type, const char *value, size_t value_length) {
-  switch(type) {
-    case NUMBER: {
-      json_parce_int_t rint;
-      json_parce_real_t real;
-      int ret = json_parce_int(value, value_length, &rint);
-      if (ret != 0) {
-        ret = json_parce_real(value, value_length, &real);
-      }
-      assert(ret == 0);
-      break;
+static void validate_value(JSON_TYPE type, const char *value,
+                           size_t value_length) {
+  switch (type) {
+  case NUMBER: {
+    json_parce_int_t rint;
+    json_parce_real_t real;
+    int ret = json_parce_int(value, value_length, &rint);
+    if (ret != 0) {
+      ret = json_parce_real(value, value_length, &real);
     }
-    case STRING: {
-      char* str = json_parce_string(value, value_length);
-      assert(str != NULL);
-      free(str);
-      break;
-    }
-    case BOOL_TYPE: {
-      int ret = json_parce_bool(value);
-      assert((ret == 0) || (ret == 1));
-      break;
-    }
-    default: {}
+    assert(ret == 0);
+    break;
+  }
+  case STRING: {
+    char *str = json_parce_string(value, value_length);
+    assert(str != NULL);
+    free(str);
+    break;
+  }
+  case BOOL_TYPE: {
+    int ret = json_parce_bool(value);
+    assert((ret == 0) || (ret == 1));
+    break;
+  }
+  default: {
+  }
   }
 }
 
@@ -395,8 +396,8 @@ int test_JSONTestSuite() {
   char filepath[1024] = {0};
 
   json_parce_callbacks deep_cbs = {.on_array_value = test_JSONTestSuite_array,
-                                    .on_object_key_value_pair =
-                                        test_JSONTestSuite_object};
+                                   .on_object_key_value_pair =
+                                       test_JSONTestSuite_object};
 
 #ifdef JSON_PARCE_ENABLE_TEST_DEBUG
   printf("%65s%10s%10s%10s%10s%10s%15s\n", "Filename", "Depth", "Parent", "Key",
@@ -487,7 +488,7 @@ int test_JSONTestSuite() {
         if (parser.err) {
           fprintf(stderr, "\t%s (%d) \n", json_errno_messages[parser.err],
                   parser.err);
-          fprintf(stderr, "\t%s(%d)\n\n",parser.file, parser.line);
+          fprintf(stderr, "\t%s(%d)\n\n", parser.file, parser.line);
         }
         retval++;
       } else if (ignore && !parser.err) {

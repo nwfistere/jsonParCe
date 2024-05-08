@@ -162,8 +162,8 @@
   }                                                                            \
   default: {                                                                   \
     (T) = NONE;                                                                \
-    SET_ERRNO(ERRNO_INVALID_CHARACTER); \
-    goto error; \
+    SET_ERRNO(ERRNO_INVALID_CHARACTER);                                        \
+    goto error;                                                                \
   }                                                                            \
   }
 
@@ -224,66 +224,74 @@
   }
 
 #ifdef JSON_PARCE_STRICT_MODE
-#define FAIL_NUMERIC() \
-  SET_ERRNO(ERRNO_INVALID_CHARACTER); \
+#define FAIL_NUMERIC()                                                         \
+  SET_ERRNO(ERRNO_INVALID_CHARACTER);                                          \
   goto error
 
-#define RESET_NUMERIC() \
-  parser->f_minus = 0; \
-  parser->f_dec = 0; \
-  parser->f_e = 0; \
-  parser->f_nonzero = 0; \
+#define RESET_NUMERIC()                                                        \
+  parser->f_minus = 0;                                                         \
+  parser->f_dec = 0;                                                           \
+  parser->f_e = 0;                                                             \
+  parser->f_nonzero = 0;                                                       \
   parser->f_zero = 0
 
-#define CHECK_NUMERIC(c) \
-  switch(c) { \
-    case 'e': \
-    case 'E': { \
-      if (parser->f_e) { \
-        FAIL_NUMERIC(); \
-      } \
-      parser->f_e = 1; \
-      break; \
-    } \
-    case '.': { \
-      if ((!parser->f_e && parser->f_dec) || (parser->f_dec >= 2)) { \
-        FAIL_NUMERIC(); \
-      } \
-      parser->f_dec++; \
-      break; \
-    } \
-    case '-': { \
-      if ((!parser->f_e && parser->f_dec) || (parser->f_minus >= 2)) { \
-        FAIL_NUMERIC(); \
-      } \
-      break; \
-    } \
-    case '0': { \
-      if (!parser->f_zero) { \
-        !parser->f_zero = 1; \
-      } \
-      if (!parser->f_nonzero) { \
-        FAIL_NUMERIC(); \
-      } \
-      break; \
-    } \
-    case '1':                                                                    \
-    case '2':                                                                    \
-    case '3':                                                                    \
-    case '4':                                                                    \
-    case '5':                                                                    \
-    case '6':                                                                    \
-    case '7':                                                                    \
-    case '8':                                                                    \
-    case '9': { \
-      if(!parser->f_nonzero) { \
-        parser->f_nonzero = 1; \
-      } \
-      break; \
-    }                                                                    \
-    default: { \
-      FAIL_NUMERIC(); \
-    } \
+#define CHECK_NUMERIC(c)                                                       \
+  switch (c) {                                                                 \
+  case 'e':                                                                    \
+  case 'E': {                                                                  \
+    if (parser->f_e) {                                                         \
+      FAIL_NUMERIC();                                                          \
+    }                                                                          \
+    parser->f_e = 1;                                                           \
+    break;                                                                     \
+  }                                                                            \
+  case '.': {                                                                  \
+    if ((!parser->f_e && parser->f_dec) || (parser->f_dec >= 2)) {             \
+      FAIL_NUMERIC();                                                          \
+    }                                                                          \
+    parser->f_dec++;                                                           \
+    break;                                                                     \
+  }                                                                            \
+  case '-': {                                                                  \
+    if ((!parser->f_e && parser->f_dec) || (parser->f_minus >= 2)) {           \
+      FAIL_NUMERIC();                                                          \
+    }                                                                          \
+    break;                                                                     \
+  }                                                                            \
+  case '+': {                                                                  \
+    if (parser->f_plus) {                                                      \
+      FAIL_NUMERIC();                                                          \
+    }                                                                          \
+    parser->f_plus = 1;                                                        \
+    break;                                                                     \
+  }                                                                            \
+  case '0': {                                                                  \
+    if (!parser->f_zero) {                                                     \
+      parser->f_zero = 1;                                                      \
+    }                                                                          \
+    break;                                                                     \
+  }                                                                            \
+  case '1':                                                                    \
+  case '2':                                                                    \
+  case '3':                                                                    \
+  case '4':                                                                    \
+  case '5':                                                                    \
+  case '6':                                                                    \
+  case '7':                                                                    \
+  case '8':                                                                    \
+  case '9': {                                                                  \
+    if (!parser->f_nonzero) {                                                  \
+      parser->f_nonzero = 1;                                                   \
+      /* leading zero */                                                       \
+      if (parser->f_zero && !parser->f_dec && !parser->f_e) {                  \
+        FAIL_NUMERIC();                                                        \
+      }                                                                        \
+    }                                                                          \
+    break;                                                                     \
+  }                                                                            \
+  default: {                                                                   \
+    FAIL_NUMERIC();                                                            \
+  }                                                                            \
   }
 #endif
 
@@ -360,9 +368,9 @@ JSON_PARCE_API void json_parce_free(json_parce *parser) {
 }
 
 static size_t do_json_parce_execute(json_parce *parser,
-                                     json_parce_callbacks *callbacks,
-                                     const char *data, size_t len,
-                                     const int deep) {
+                                    json_parce_callbacks *callbacks,
+                                    const char *data, size_t len,
+                                    const int deep) {
   const char *p = data;
   enum state p_state = (enum state)parser->state;
   size_t nread = parser->nread;
@@ -966,8 +974,9 @@ error:
     SET_ERRNO(ERRNO_UNKNOWN);
   }
 
-  fprintf(stderr, "%s(%d) - %s\n", parser->file, parser->line, json_errno_messages[parser->err]);
-  if(parser->err == ERRNO_INVALID_CHARACTER) {
+  fprintf(stderr, "%s(%d) - %s\n", parser->file, parser->line,
+          json_errno_messages[parser->err]);
+  if (parser->err == ERRNO_INVALID_CHARACTER) {
     fprintf(stderr, "Invalid character: \"%c\"\n", *p);
   }
 
@@ -975,20 +984,21 @@ error:
 }
 
 JSON_PARCE_API size_t json_parce_execute(json_parce *parser,
-                                          json_parce_callbacks *callbacks,
-                                          const char *data, size_t len) {
+                                         json_parce_callbacks *callbacks,
+                                         const char *data, size_t len) {
   return do_json_parce_execute(parser, callbacks, data, len, 0);
 }
 
 JSON_PARCE_API size_t json_deep_parce_execute(json_parce *parser,
-                                               json_parce_callbacks *callbacks,
-                                               const char *data, size_t len) {
+                                              json_parce_callbacks *callbacks,
+                                              const char *data, size_t len) {
   return do_json_parce_execute(parser, callbacks, data, len, 1);
 }
 
-JSON_PARCE_API size_t
-json_parce_execute_utf16(json_parce *parser, json_parce_callbacks *callbacks,
-                          const char16_t *data, size_t len) {
+JSON_PARCE_API size_t json_parce_execute_utf16(json_parce *parser,
+                                               json_parce_callbacks *callbacks,
+                                               const char16_t *data,
+                                               size_t len) {
   char *content = NULL;
   size_t content_len = 0;
 
@@ -1005,9 +1015,10 @@ json_parce_execute_utf16(json_parce *parser, json_parce_callbacks *callbacks,
   return retval;
 }
 
-JSON_PARCE_API size_t
-json_parce_execute_utf32(json_parce *parser, json_parce_callbacks *callbacks,
-                          const char32_t *data, size_t len) {
+JSON_PARCE_API size_t json_parce_execute_utf32(json_parce *parser,
+                                               json_parce_callbacks *callbacks,
+                                               const char32_t *data,
+                                               size_t len) {
   char *content = NULL;
   size_t content_len = 0;
 
@@ -1025,8 +1036,8 @@ json_parce_execute_utf32(json_parce *parser, json_parce_callbacks *callbacks,
 }
 
 static size_t do_json_parce_execute_file(json_parce *parser,
-                                          json_parce_callbacks *callbacks,
-                                          const char *file, int deep) {
+                                         json_parce_callbacks *callbacks,
+                                         const char *file, int deep) {
 
   int encoding = UNKNOWN;
   size_t file_size = 0;
@@ -1112,8 +1123,8 @@ static size_t do_json_parce_execute_file(json_parce *parser,
 }
 
 JSON_PARCE_API size_t json_parce_execute_file(json_parce *parser,
-                                               json_parce_callbacks *callbacks,
-                                               const char *file) {
+                                              json_parce_callbacks *callbacks,
+                                              const char *file) {
   return do_json_parce_execute_file(parser, callbacks, file, 0);
 }
 
@@ -1122,18 +1133,19 @@ JSON_PARCE_API size_t json_deep_parce_execute_file(
   return do_json_parce_execute_file(parser, callbacks, file, 1);
 }
 
-JSON_PARCE_API char* json_parce_string(const char* str, size_t len) {
-  char* ret = (char*)malloc((len + 1) * sizeof(char));
+JSON_PARCE_API char *json_parce_string(const char *str, size_t len) {
+  char *ret = (char *)malloc((len + 1) * sizeof(char));
   memcpy(ret, str, len + 1);
   return ret;
 }
 
-JSON_PARCE_API int json_parce_bool(const char* str) {
+JSON_PARCE_API int json_parce_bool(const char *str) {
   return (str && str[0] && (str[0] == 't'));
 }
 
-JSON_PARCE_API int json_parce_real(const char* str, size_t len, json_parce_real_t* ret) {
-  char lstr[JSON_PARCE_REAL_MAX_DIG + 1] = { 0 };
+JSON_PARCE_API int json_parce_real(const char *str, size_t len,
+                                   json_parce_real_t *ret) {
+  char lstr[JSON_PARCE_REAL_MAX_DIG + 1] = {0};
 
   if (len > JSON_PARCE_REAL_MAX_DIG) {
     return ERRNO_OUT_OF_RANGE;
@@ -1148,8 +1160,9 @@ JSON_PARCE_API int json_parce_real(const char* str, size_t len, json_parce_real_
   return 0;
 }
 
-JSON_PARCE_API int json_parce_int(const char* str, size_t len, json_parce_int_t* ret) {
-  char lstr[JSON_PARCE_INT_MAX_DIG + 1] = { 0 };
+JSON_PARCE_API int json_parce_int(const char *str, size_t len,
+                                  json_parce_int_t *ret) {
+  char lstr[JSON_PARCE_INT_MAX_DIG + 1] = {0};
 
   if (len > JSON_PARCE_INT_MAX_DIG) {
     return ERRNO_OUT_OF_RANGE;
