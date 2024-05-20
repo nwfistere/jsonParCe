@@ -109,8 +109,9 @@ typedef struct json_parce {
   int f_zero : 1;
   // int f_plus : 1;
 
-  // Not sure if I want to make this universal or just keep it for the unicode handling.
-  // Could clean up a lot of code but may make it less readable? Ha ha ha
+  // Not sure if I want to make this universal or just keep it for the unicode
+  // handling. Could clean up a lot of code but may make it less readable? Ha ha
+  // ha
   unsigned int return_state;
 #endif
 
