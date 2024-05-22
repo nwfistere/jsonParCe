@@ -8,6 +8,8 @@ set(JSON_PARCE_ENABLE_EXAMPLE_COMPILE OFF CACHE BOOL "Enables compiling examples
 set(JSON_PARCE_ENABLE_SANITIZERS OFF CACHE BOOL "Enables compiling with sanitizer flags")
 set(JSON_PARCE_ENABLE_STRICT_MODE OFF CACHE BOOL "Enables compiling with strict json syntax mode (will slow down parsing)")
 set(JSON_PARCE_DEBUG_TEST OFF CACHE BOOL "Enables verbose logging during test.")
+set(JSON_PARCE_JSON_PATH ON CACHE BOOL "Enables verbose logging during test.")
+
 
 
 project(json_parce C)
@@ -131,6 +133,11 @@ if(JSON_PARCE_ENABLE_TEST)
   enable_testing()
   add_subdirectory(test)
 endif()
+
+if(JSON_PARCE_JSON_PATH)
+  add_subdirectory(json_path)
+endif()
+
 
 if(JSON_PARCE_ENABLE_EXAMPLE_COMPILE)
   add_subdirectory(examples)
