@@ -2,7 +2,7 @@ project(json_path LANGUAGES CXX)
 
 set(CPP_STANDARD 20)
 
-add_executable(${PROJECT_NAME} json_path.cpp)
+add_executable(${PROJECT_NAME} main.cpp json_path.cpp)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ../include)
 target_link_libraries(${PROJECT_NAME} PRIVATE json_parce_shared)
