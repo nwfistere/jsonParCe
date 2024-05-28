@@ -1,4 +1,5 @@
 #include "json_path.hpp"
+#include <algorithm>
 #include <stdexcept>
 
 namespace json_path {
@@ -10,7 +11,7 @@ JSON_PATH_TYPE get_value_type(const value_t& value) {
     return REAL_TYPE;
   } else if (std::holds_alternative<bool>(value)) {
     return BOOL_TYPE;
-  } else if (std::holds_alternative<std::monostate>(value)) {
+  } else if (std::holds_alternative<json_null>(value)) {
     return NULL_TYPE;
   } else if (std::holds_alternative<std::string>(value)) {
     return STRING;
@@ -69,7 +70,7 @@ int on_object_value(json_parce *parser, const char *key, size_t key_length, JSON
       break;
     }
     case(JSON_TYPE::NULL_TYPE): {
-      par_val.insert({ std::string(key, key_length), json_node(std::monostate()) });
+      par_val.insert({ std::string(key, key_length), json_node(json_null()) });
       break;
     }
     default: {
@@ -118,7 +119,7 @@ int on_array_value(json_parce *parser, unsigned int index, JSON_TYPE type, const
       break;
     }
     case(JSON_TYPE::NULL_TYPE): {
-      par_val.push_back(json_node(std::monostate()));
+      par_val.push_back(json_node(json_null()));
       break;
     }
     default: {
@@ -150,6 +151,110 @@ json_node* parse_json(const std::string& data) {
   }
 
   return context.current_parent;
+}
+
+int json_path::normalize(int i, int len) {
+  return ((i >= 0) ? i : (len + i));
+}
+
+void json_path::bounds(int start, int end, int step, int len, int& lower, int& upper) {
+  int n_start = normalize(start, len);
+  int n_end = normalize(end, len);
+
+  if (step >= 0) {
+    lower = std::min(std::max(n_start, 0), len);
+    upper = std::min(std::max(n_end, 0), len);
+  } else {
+    upper = std::min(std::max(n_start, -1), len - 1);
+    lower = std::min(std::max(n_end, -1), len - 1);
+  }
+}
+
+json_path json_path::slice(const int* start, const int* end, const int* step) {
+  int upper, lower, lstep, lend, lstart;
+  std::vector<json_node> array = get<std::vector<json_node>>();
+
+  lstep = (step ? *step : 1);
+  lend = (end ? *end : (lstep >= 0 ? array.size() : ((-1 * array.size()) - 1)));
+  lstart = (start ? *start : (lstep >= 0 ? 0 : (array.size() - 1)));
+
+  std::vector<json_node> retval;
+  // set bounds
+  bounds(lstart, lend, lstep, array.size(), lower, upper);
+
+  // step of 0 returns an empty list.
+  if (lstep > 0) {
+    for (int i = lower; i < upper; i += lstep) {
+      retval.push_back(array[i]);
+    }
+  } else if (lstep < 0) {
+    for (int i = upper; i > lower; i += lstep) {
+      retval.push_back(array[i]);
+    }
+  }
+
+  return json_path(json_node(retval));
+}
+
+json_path json_path::wildcard() {
+  auto retNodes = std::vector<json_node>();
+  if (m_current_node->type == JSON_PATH_TYPE::OBJECT) {
+    std::map<std::string, json_node> object = std::get<std::map<std::string, json_node>>(m_current_node->value);
+    for (const auto& pair : object) {
+      retNodes.push_back(pair.second);
+    }
+  } else if (m_current_node->type == JSON_PATH_TYPE::ARRAY) {
+    return (*this);
+  }
+
+  return json_path(json_node(retNodes));
+}
+
+json_path_descendant json_path::descendant() {
+  auto retNodes = std::vector<json_node>();
+  if (m_current_node->type == JSON_PATH_TYPE::OBJECT) {
+    std::map<std::string, json_node> object = get<std::map<std::string, json_node>>();
+    for (auto& pair : object) {
+      std::vector<json_node> value_path_nodes = json_path(pair.second).get_descendants();
+      for (auto& item : value_path_nodes) {
+        retNodes.push_back(item);
+      }
+    }
+  } else if (m_current_node->type == JSON_PATH_TYPE::ARRAY) {
+    std::vector<json_node> array = get<std::vector<json_node>>();
+    for (auto& item : array) {
+      std::vector<json_node> value_path_nodes = json_path(item).get_descendants();
+      for (auto& item2 : value_path_nodes) {
+        retNodes.push_back(item2);
+      }
+    }
+  }
+
+  return json_path_descendant(retNodes);
+}
+
+std::vector<json_node> json_path::get_descendants() {
+  auto retNodes = std::vector<json_node>();
+  retNodes.push_back(*m_current_node);
+  if (m_current_node->type == JSON_PATH_TYPE::OBJECT) {
+    std::map<std::string, json_node> object = get<std::map<std::string, json_node>>();
+    for (auto& pair : object) {
+      std::vector<json_node> value_path_nodes = json_path(pair.second).get_descendants();
+      for (auto& item : value_path_nodes) {
+        retNodes.push_back(item);
+      }
+    }
+  } else if (m_current_node->type == JSON_PATH_TYPE::ARRAY) {
+    std::vector<json_node> array = get<std::vector<json_node>>();
+    for (auto& item : array) {
+      std::vector<json_node> value_path_nodes = json_path(item).get_descendants();
+      for (auto& item2 : value_path_nodes) {
+        retNodes.push_back(item2);
+      }
+    }
+  }
+
+  return retNodes;
 }
 
 }
