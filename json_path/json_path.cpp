@@ -24,12 +24,6 @@ JSON_PATH_TYPE get_value_type(const value_t& value) {
   }
 }
 
-json_node::json_node(const json_path& path) {
-  type = path.get_current_node()->type;
-  value = path.get_current_node()->value;
-};
-
-
 int on_object_value(json_parce *parser, const char *key, size_t key_length, JSON_TYPE type, const char *value, size_t value_length) {
   json_node_context* context = (json_node_context*)parser->data;
   if (!context->current_parent) {
@@ -40,6 +34,14 @@ int on_object_value(json_parce *parser, const char *key, size_t key_length, JSON
   switch(type) {
     case(JSON_TYPE::ARRAY):
     case(JSON_TYPE::OBJECT): {
+      if (value_length == 2) {
+        // empty array or object...
+        par_val.insert({
+          std::string(key, key_length),
+          (type == JSON_TYPE::OBJECT ? json_node(std::map<std::string, json_node>()) : json_node(std::vector<json_node>()))
+        });
+        break;
+      }
       json_node* node = context->cb(std::string(value, value_length));
       par_val.insert({ std::string(key, key_length), *node});
       break;
@@ -92,6 +94,11 @@ int on_array_value(json_parce *parser, unsigned int index, JSON_TYPE type, const
   switch(type) {
     case(JSON_TYPE::OBJECT):
     case(JSON_TYPE::ARRAY): {
+      if (value_length == 2) {
+        // empty array or object...
+        par_val.push_back(type == JSON_TYPE::OBJECT ? json_node(std::map<std::string, json_node>()) : json_node(std::vector<json_node>()));
+        break;
+      }
       par_val.push_back(*context->cb(std::string(value, value_length)));
       break;
     }

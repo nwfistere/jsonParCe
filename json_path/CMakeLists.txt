@@ -2,9 +2,9 @@ project(json_path LANGUAGES CXX)
 
 set(CPP_STANDARD 20)
 
-add_executable(${PROJECT_NAME} main.cpp json_path.cpp)
+add_executable(${PROJECT_NAME} main.cpp json_path.cpp json_node.cpp json_path_filter.cpp expressions.cpp)
 
-target_include_directories(${PROJECT_NAME} PRIVATE ../include)
+target_include_directories(${PROJECT_NAME} PRIVATE ../include ./filter)
 target_link_libraries(${PROJECT_NAME} PRIVATE json_parce_shared)
 
 cmake_print_variables(CMAKE_CXX_SIMULATE_ID)

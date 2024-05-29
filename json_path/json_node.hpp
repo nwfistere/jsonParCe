@@ -40,9 +40,12 @@ struct json_node {
   json_node(const json_path& path);
 
   json_node(const value_t& value) : value(value), type(get_value_type(value)) {
-    if (type == NONE) {
-      throw std::out_of_range("Invalid json type");
-    }
+    // if (type == NONE) {
+    //   std::cerr << "Warning, creating invalid json_node.\n";
+    // }
+    // // if (type == NONE) {
+    // //   throw std::out_of_range("Invalid json type");
+    // // }
   }
 
   ~json_node() {
@@ -300,7 +303,7 @@ struct json_node {
       auto r = other.as<std::string>();
       return (!(l.empty()) && !(r.empty()));
     } else if (type == JSON_PATH_TYPE::NONE) {
-      std::cerr << "WARNING: compaing two invalid types.\n";
+      std::cerr << "WARNING: comparing two invalid types.\n";
       return true;
     } else if (type == JSON_PATH_TYPE::INT_TYPE) {
       auto l = as<json_parce_int_t>();
@@ -367,6 +370,7 @@ struct json_node {
             return false;
           }
         }
+        break;
       }
       case (ARRAY): {
         std::vector<json_node> l = as<std::vector<json_node>>();
@@ -401,8 +405,11 @@ struct json_node {
         return as<json_parce_real_t>() == other.as<json_parce_real_t>();
       }
       case (NONE): {
-        std::cerr << "==: returning true for " << type << "\n";
-        break;
+        return true;
+      }
+      default: {
+        std::cerr << "==: returning false for " << type << "\n";
+        return false;
       }
     }
     return true;
@@ -413,8 +420,8 @@ struct json_node {
   }
 
   bool operator>(const json_node& other) const {
-    if (type != other.type) {
-      throw std::invalid_argument("Invalid type comparison.");
+    if (type != other.type && !(((type == INT_TYPE) && (other.type == REAL_TYPE)) || ((type == REAL_TYPE) && (other.type == INT_TYPE)))) {
+      return false;
     }
 
     if (type == NONE) {
@@ -430,10 +437,14 @@ struct json_node {
         return (as<std::string>() > other.as<std::string>());
       }
       case(INT_TYPE): {
-        return (as<json_parce_int_t>() > other.as<json_parce_int_t>());
+        if (other.type == INT_TYPE) {
+          return (as<json_parce_int_t>() > other.as<json_parce_int_t>());
+        } else {
+          return (as<json_parce_int_t>() > other.as<json_parce_real_t>());
+        }
       }
       case(REAL_TYPE): {
-        return (as<json_parce_real_t>() > other.as<json_parce_real_t>());
+          return (as<json_parce_real_t>() > other.as<json_parce_real_t>());
       }
     }
 
@@ -446,7 +457,7 @@ struct json_node {
 
   bool operator<(const json_node& other) const {
     if (type != other.type) {
-      throw std::invalid_argument("Invalid type comparison.");
+      return false;
     }
 
     if (type == NONE) {
