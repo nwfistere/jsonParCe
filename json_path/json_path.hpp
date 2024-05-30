@@ -95,10 +95,6 @@ public:
 
   std::vector<json_node> get_descendants();
 
-  json_path filter(const std::string& expression) {
-
-  }
-
   json_path operator[](const std::string& segment) {
     return select_child(segment.c_str());
   }
@@ -136,6 +132,8 @@ public:
   json_node_t get_current_node() const {
     return m_current_node;
   }
+
+  json_node_t filter(const std::string& selector);
 
   json_path slice(const int* lower = nullptr, const int* upper = nullptr, const int* step = nullptr);
 

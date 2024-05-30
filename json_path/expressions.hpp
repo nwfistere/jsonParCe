@@ -1,5 +1,6 @@
 #pragma once
 #include <stdexcept>
+#include <variant>
 #ifndef EXPRESSIONS_H
 #define EXPRESSIONS_H
 
@@ -24,14 +25,15 @@ enum OPERATION {
   SELECTOR,
   LITERAL,
   FILTER,
-  MULTI
+  MULTI,
+  WILDCARD
 };
 
 struct expression {
   OPERATION operation;
   expression(OPERATION operation) : operation(operation) {}
   virtual ~expression() = default;
-  virtual json_node eval() = 0;
+  virtual bool eval() = 0;
 };
 
 using expression_t = std::shared_ptr<expression>;
@@ -63,6 +65,19 @@ public:
 
 using node_provider_t = std::shared_ptr<node_provider>;
 
+struct value_expression : public expression {
+  value_expression(OPERATION operation) : expression(operation) {}
+  bool eval() override = 0;
+
+  virtual json_node_t get_value() = 0;
+
+  static bool is_value(expression_t expr) {
+    return (dynamic_cast<value_expression*>(expr.get()) != nullptr);
+  }
+};
+
+using value_expression_t = std::shared_ptr<value_expression>;
+
 struct binary_expression : public expression {
   expression_t left;
   expression_t right;
@@ -72,7 +87,21 @@ struct binary_expression : public expression {
   left(l),
   right(r) {}
 
-  virtual json_node eval() override = 0;
+  void get_child_expression_values(value_expression_t& l_value, bool* l_bool, value_expression_t& r_value, bool* r_bool) {
+    if (value_expression::is_value(left)) {
+      l_value = std::dynamic_pointer_cast<value_expression>(left);
+    } else {
+      *l_bool = left->eval();
+    }
+
+    if (value_expression::is_value(right)) {
+      r_value = std::dynamic_pointer_cast<value_expression>(right);
+    } else {
+      *r_bool = right->eval();
+    }
+  }
+
+  virtual bool eval() override = 0;
 
   bool has_left() {
     return left != nullptr;
@@ -99,210 +128,228 @@ struct unary_expression : public expression {
 struct or_expression : public binary_expression {
   or_expression(expression_t l, expression_t r) : binary_expression(l, OPERATION::OR, r) {}
 
-  virtual json_node eval() override {
-    json_node l_result = left->eval();
-    json_node r_result = right->eval();
+  virtual bool eval() override {
+    bool l_bool;
+    bool r_bool;
+    value_expression_t l_value;
+    value_expression_t r_value;
 
-    std::vector<json_node> result;
-    if (l_result.type == ARRAY) {
-      result = l_result.as<std::vector<json_node>>();
-    } else if (l_result.type != NONE) {
-      result.push_back(l_result);
-    }
-
-    if (r_result.type == ARRAY) {
-      for (const auto& i : r_result.as<std::vector<json_node>>()) {
-        result.push_back(i);
+    get_child_expression_values(l_value, &l_bool, r_value, &r_bool);
+    
+    if (l_value != nullptr) {
+      if (r_value != nullptr) {
+        return *(l_value->get_value()) || *(r_value->get_value());
       }
-    } else if (r_result.type != NONE) {
-      result.push_back(r_result);
+      return *(l_value->get_value()) || r_bool;
     }
-
-    if (result.empty()) {
-      return json_node(std::monostate());
+    if (r_value != nullptr) {
+      return l_bool || *(r_value->get_value());
     }
-
-    return json_node(result);
+    return l_bool || r_bool;
   }
 };
 
 struct and_expression : public binary_expression {
   and_expression(expression_t l, expression_t r) : binary_expression(l, OPERATION::AND, r) {}
 
-  virtual json_node eval() override {
-    json_node l_result = left->eval();
-    json_node r_result = right->eval();
+  virtual bool eval() override {
+    bool l_bool;
+    bool r_bool;
+    value_expression_t l_value;
+    value_expression_t r_value;
 
-    if (l_result && r_result) {
-      return l_result;
+    get_child_expression_values(l_value, &l_bool, r_value, &r_bool);
+    
+    if (l_value != nullptr) {
+      if (r_value != nullptr) {
+        return *(l_value->get_value()) && *(r_value->get_value());
+      }
+      return *(l_value->get_value()) && r_bool;
     }
-    return json_node(std::monostate());
+    if (r_value != nullptr) {
+      return l_bool && *(r_value->get_value());
+    }
+    return l_bool && r_bool;
   }
 };
 
 struct equivalent_expression : public binary_expression {
   equivalent_expression(expression_t l, expression_t r) : binary_expression(l, OPERATION::EQUAL, r) {}
 
-  virtual json_node eval() override {
-    json_node l_result = left->eval();
-    json_node r_result = right->eval();
-
-    if (l_result == r_result) {
-      return l_result;
+  virtual bool eval() override {
+    if (value_expression::is_value(left) && value_expression::is_value(right)) {
+      value_expression* l_result = dynamic_cast<value_expression*>(left.get());
+      value_expression* r_result = dynamic_cast<value_expression*>(right.get());
+      return (*l_result->get_value()) == (*r_result->get_value());
+    } else if (value_expression::is_value(left)) {
+      value_expression* l_result = dynamic_cast<value_expression*>(left.get());
+      bool r_result = right->eval();
+      return (*l_result->get_value()) == r_result;
+    } else if (value_expression::is_value(right)) {
+      bool l_result = left->eval();
+      value_expression* r_result = dynamic_cast<value_expression*>(right.get());
+      return l_result == (*r_result->get_value());
     }
-    return json_node(std::monostate());
+    bool l_result = left->eval();
+    bool r_result = right->eval();
+
+    return (l_result == r_result);
   }
 };
 
 struct not_equivalent_expression : public binary_expression {
   not_equivalent_expression(expression_t l, expression_t r) : binary_expression(l, OPERATION::NOT_EQUAL, r) {}
 
-  virtual json_node eval() override {
-    json_node l_result = left->eval();
-    json_node r_result = right->eval();
 
-    if (l_result != r_result) {
-      return l_result;
+  virtual bool eval() override {
+    bool l_bool;
+    bool r_bool;
+    value_expression_t l_value;
+    value_expression_t r_value;
+
+    get_child_expression_values(l_value, &l_bool, r_value, &r_bool);
+    
+    if (l_value != nullptr) {
+      if (r_value != nullptr) {
+        return *(l_value->get_value()) != *(r_value->get_value());
+      }
+      return *(l_value->get_value()) != r_bool;
     }
-    return json_node(std::monostate());
+    if (r_value != nullptr) {
+      return l_bool != *(r_value->get_value());
+    }
+    return l_bool != r_bool;
   }
 };
 
 struct le_expression : public binary_expression {
   le_expression(expression_t l, expression_t r) : binary_expression(l, OPERATION::LE, r) {}
 
-  virtual json_node eval() override {
-    json_node l_result = left->eval();
-    json_node r_result = right->eval();
-
-    if (l_result <= r_result) {
-      return l_result;
-    }
-    return json_node(std::monostate());
+  virtual bool eval() override {
+    value_expression_t l_value = std::dynamic_pointer_cast<value_expression>(left);
+    value_expression_t r_value =std::dynamic_pointer_cast<value_expression>(right);
+    
+    return *l_value->get_value() <= *r_value->get_value();
   }
 };
 
 struct lt_expression : public binary_expression {
   lt_expression(expression_t l, expression_t r) : binary_expression(l, OPERATION::LT, r) {}
 
-  virtual json_node eval() override {
-    json_node l_result = left->eval();
-    json_node r_result = right->eval();
-
-    if (l_result < r_result) {
-      return l_result;
-    }
-    return json_node(std::monostate());
+  virtual bool eval() override {
+    value_expression_t l_value = std::dynamic_pointer_cast<value_expression>(left);
+    value_expression_t r_value =std::dynamic_pointer_cast<value_expression>(right);
+    
+    return *l_value->get_value() < *r_value->get_value();
   }
 };
 
 struct ge_expression : public binary_expression {
   ge_expression(expression_t l, expression_t r) : binary_expression(l, OPERATION::GE, r) {}
 
-  virtual json_node eval() override {
-    json_node l_result = left->eval();
-    json_node r_result = right->eval();
-
-    if (l_result >= r_result) {
-      return l_result;
-    }
-    return json_node(std::monostate());
+  virtual bool eval() override {
+    value_expression_t l_value = std::dynamic_pointer_cast<value_expression>(left);
+    value_expression_t r_value =std::dynamic_pointer_cast<value_expression>(right);
+    
+    return *l_value->get_value() >= *r_value->get_value();
   }
 };
 
 struct gt_expression : public binary_expression {
   gt_expression(expression_t l, expression_t r) : binary_expression(l, OPERATION::GT, r) {}
 
-  virtual json_node eval() override {
-    json_node l_result = left->eval();
-    json_node r_result = right->eval();
-
-    if (l_result > r_result) {
-      return l_result;
-    }
-    return json_node(std::monostate());
+  virtual bool eval() override {
+    value_expression_t l_value = std::dynamic_pointer_cast<value_expression>(left);
+    value_expression_t r_value =std::dynamic_pointer_cast<value_expression>(right);
+    
+    return *l_value->get_value() > *r_value->get_value();
   }
 };
 
 struct not_expression : public unary_expression {
   not_expression(expression_t expr) : unary_expression(OPERATION::NOT, expr) {}
 
-  virtual json_node eval() override {
-    json_node result = expr->eval();
-    // TODO: on construction, we need to invert the child expressions.
-    return result;
+  virtual bool eval() override {
+    return !expr->eval();
   }
 };
 
 struct grouped_expression : public unary_expression {
   grouped_expression(expression_t expr) : unary_expression(OPERATION::PARENTHESES, expr) {}
 
-  virtual json_node eval() override {
-    json_node result = expr->eval();
-
-    return result;
+  virtual bool eval() override {
+    return expr->eval();
   }
 };
 
-struct literal_value_expression : public expression {
-  json_node_t node;
-
+struct literal_value_expression : public value_expression {
+  json_node_t value;
   literal_value_expression(json_node_t node) :
-    expression(LITERAL), node(node) {}
+    value_expression(LITERAL),
+    value(node) {}
 
-  virtual json_node eval() override {
-    return *node;
+  bool eval() override {
+    return (bool) (*get_value());
   }
 
+  json_node_t get_value() override {
+    return value;
+  }
 };
 
 struct selector_child_expression : public literal_value_expression {
   selector_child_expression(json_node_t node) :
     literal_value_expression(node) {}
+};
 
-  virtual json_node eval() override {
-    return *node;
+struct selector_expression : public value_expression {
+  value_expression_t left;
+  std::shared_ptr<selector_child_expression> right;
+  selector_expression(value_expression_t l, std::shared_ptr<selector_child_expression> r) :
+    value_expression(OPERATION::SELECTOR), left(l), right(r) {}
+
+  bool eval() override {
+    return (bool) (*get_value());
+  }
+
+  json_node_t get_value() override {
+    std::string selector;
+    json_node_t l_result = left->get_value();
+    json_node_t r_result = right->get_value();
+    if (r_result->type == STRING) {
+      // regular selector;
+      selector = right->get_value()->as<std::string>();
+    } else {
+      // wildcard // TODO: wildcard expression could probably go away with just a check here to do it's logic.
+      return r_result;
+    }
+    
+    try {
+      value_t val = l_result->as<std::map<std::string, json_node>>().at(selector).value;
+      return std::make_shared<json_node>(val);
+    } catch (std::out_of_range) {} catch (std::bad_variant_access) {}
+  
+
+    return std::make_shared<json_node>(std::monostate());
   }
 };
 
-struct selector_expression : public binary_expression {
-  selector_expression(expression_t l, expression_t r) : binary_expression(l, OPERATION::SELECTOR, r) {}
-
-  virtual json_node eval() override {
-    json_node l_result = left->eval();
-
-    if (l_result.type != OBJECT) {
-      return json_node(std::monostate());
-    }
-
-    std::map<std::string, json_node> object = l_result.as<std::map<std::string, json_node>>();
-    selector_child_expression* child_expresion = nullptr;
-
-    child_expresion = dynamic_cast<selector_child_expression*>(right.get());
-    if(child_expresion) {
-      std::string child = child_expresion->node->as<std::string>();
-      try {
-        return object.at(child);
-      } catch (std::out_of_range) {
-        return json_node(std::monostate());
-      }
-    }
-    throw std::invalid_argument("Expected selector_child_expression, got something else.");
-  }
-};
-
-struct provided_node_expression : public expression {
+struct provided_node_expression : public value_expression {
   node_provider_t m_provider;
   provided_node_expression(node_provider_t provider) :
-    expression(LITERAL), m_provider(provider) {}
+    value_expression(LITERAL), m_provider(provider) {}
+
+    bool eval() override {
+      throw std::invalid_argument("invalid type");
+    }
 };
 
 struct current_node_expression : public provided_node_expression {
   current_node_expression(node_provider_t node) :
     provided_node_expression(node) {}
 
-  json_node eval() override {
-    return *m_provider->get_current_node().get();
+  json_node_t get_value() override {
+    return m_provider->get_current_node();
   }
 };
 
@@ -310,8 +357,8 @@ struct root_node_expression : public provided_node_expression {
   root_node_expression(node_provider_t node) :
     provided_node_expression(node) {}
 
-  json_node eval() override {
-    return *m_provider->get_root_node().get();
+  json_node_t get_value() override {
+    return m_provider->get_root_node();
   }
 };
 
@@ -319,9 +366,8 @@ struct match_function_expression : public binary_expression {
   match_function_expression(expression_t l, expression_t r) :
     binary_expression(l, OPERATION::FUNCTION, r) {}
 
-  json_node eval() override {
-    std::cout << "match.eval()\n";
-    return left->eval();
+  bool eval() override {
+    return true; // TODO: implement
   }
 };
 
@@ -329,32 +375,56 @@ struct search_function_expression : public binary_expression {
   search_function_expression(expression_t l, expression_t r) :
     binary_expression(l, OPERATION::FUNCTION, r) {}
 
-  json_node eval() override {
-    std::cout << "search.eval()\n";
-    return left->eval();
+  bool eval() override {
+    return true; // TODO: implement
   }
 };
 
-struct sub_filter_expression : public binary_expression {
+struct sub_filter_expression : public value_expression {
   node_provider_t m_provider;
+  value_expression_t outer_expr;
+  std::shared_ptr<literal_value_expression> inner_expr;
+
   // TODO: inherit unary_expression and provided_expressions, they will need to be virtual.
   sub_filter_expression(
-    expression_t outer_expr,
+    value_expression_t outer_expr,
     std::shared_ptr<literal_value_expression> inner_expr,
     node_provider_t provider) :
-    binary_expression(outer_expr, OPERATION::FILTER, inner_expr),
-    m_provider(provider) {}
+    value_expression(OPERATION::FILTER),
+    m_provider(provider),
+    outer_expr(outer_expr),
+    inner_expr(inner_expr) {}
 
-  json_node eval() override;
+  bool eval() override {
+    // throw std::invalid_argument("Invalid type to call eval on.");
+    return (bool) (*get_value());
+  }
+
+  json_node_t get_value() override;
 };
 
-struct multi_filter_wrapper_expression : public unary_expression {
+struct multi_filter_wrapper_expression : public expression {
+  expression_t expr;
   multi_filter_wrapper_expression(expression_t expr)
-    : unary_expression(MULTI, expr) {}
+    : expression(MULTI),
+    expr(expr) {}
 
-  json_node eval() {
+  bool eval() {
     return expr->eval();
   }
+};
+
+struct wildcard_expression : public selector_child_expression {
+  node_provider_t m_provider;
+  wildcard_expression(node_provider_t provider) :
+    selector_child_expression(nullptr),
+    m_provider(provider) {}
+
+  // bool eval() override {
+  //   return (bool) (*get_value());
+  // }
+
+  json_node_t get_value() override;
 };
 
 } // namespace json_path

@@ -1,6 +1,7 @@
 #include "json_path.hpp"
 #include <algorithm>
 #include <stdexcept>
+#include "json_path_filter.hpp"
 
 namespace json_path {
 
@@ -214,7 +215,7 @@ json_path json_path::wildcard() {
     return (*this);
   }
 
-  return json_path(json_node(retNodes));
+  return json_path(json_node(retNodes)); // TODO: If we change the empty return here, change wildcard handling in filter expressions as well.
 }
 
 json_path_descendant json_path::descendant() {
@@ -262,6 +263,11 @@ std::vector<json_node> json_path::get_descendants() {
   }
 
   return retNodes;
+}
+
+json_node_t json_path::filter(const std::string& selector) {
+    filter_expression expression(m_current_node, m_current_node, selector);
+    return expression.parse();
 }
 
 }

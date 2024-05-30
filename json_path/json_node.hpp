@@ -233,34 +233,8 @@ struct json_node {
   }
 
   operator bool() const {
-    switch (type) {
-      case (OBJECT): {
-        return !(as<std::map<std::string, json_node>>().empty());
-      }
-      case (ARRAY): {
-        return !(as<std::vector<json_node>>().empty());
-      }
-      case (NUMBER): {
-        throw std::invalid_argument("Invalid type \"NUMBER\"");
-      }
-      case (STRING): {
-        return !(as<std::string>().empty());
-      }
-      case (BOOL_TYPE): {
-        return as<bool>();
-      }
-      case (NULL_TYPE): {
-        return false; // TODO: Not sure if we should return true or false for null.
-      }
-      case (INT_TYPE): {
-        return as<json_parce_int_t>();
-      }
-      case (REAL_TYPE): {
-        return as<json_parce_real_t>();
-      }
-      case (NONE): {
-        return false;
-      }
+    if (type == NONE) {
+      return false;
     }
     return true;
   }
@@ -342,6 +316,8 @@ struct json_node {
       auto l = as<json_parce_real_t>();
       auto r = other.as<json_parce_real_t>();
       return (l || r);
+    } else if (type == JSON_PATH_TYPE::NONE) {
+      return false;
     } else {
       std::cerr << "operator||: defaulting to true for type " << type << "\n";
     }

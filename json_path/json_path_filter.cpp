@@ -1,4 +1,5 @@
 #include "json_path_filter.hpp"
+#include "expressions.hpp"
 #include <memory>
 #include <stdexcept>
 
@@ -163,25 +164,30 @@ std::vector<expression_t> expression_parser::parse(std::string str) {
       }
       case '!': {
         if (p != '=') {
-          add_expression(new not_expression(nullptr));
+          add_expression(std::make_shared<not_expression>(nullptr));
         } else {
-          add_expression(new not_equivalent_expression(nullptr, nullptr));
+          add_expression(std::make_shared<not_equivalent_expression>(nullptr, nullptr));
         }
         break;
       }
       case '$': {
-        add_expression(new root_node_expression(m_provider));
+        add_expression(std::make_shared<root_node_expression>(m_provider));
         break;
       }
       case '@': {
-        add_expression(new current_node_expression(m_provider));
+        add_expression(std::make_shared<current_node_expression>(m_provider));
         break;
       }
       case '.': { //TODO: Don't worry about ".." yet.
         std::string child = get_selector(str.substr(i + 1));
         expression_t back = expressions.back();
         expressions.pop_back();
-        add_expression(new selector_expression(back, expression_t(new selector_child_expression(std::make_shared<json_node>(child)))));
+        value_expression_t value = std::dynamic_pointer_cast<value_expression>(back);
+        if (child == std::string("*")) {
+          add_expression(std::make_shared<selector_expression>(value, std::make_shared<wildcard_expression>(m_provider)));
+        } else {
+          add_expression(std::make_shared<selector_expression>(value, std::make_shared<selector_child_expression>(std::make_shared<json_node>(child))));
+        }
         i += child.size();
         break;
       }
@@ -199,15 +205,15 @@ std::vector<expression_t> expression_parser::parse(std::string str) {
       case '<': {
         bool equal_to = ((c == '<' || c == '>') && p == '=');
         if (c == '>' && equal_to) {
-          add_expression(new ge_expression(nullptr, nullptr));
+          add_expression(std::make_shared<ge_expression>(nullptr, nullptr));
         } else if (c == '>') {
-          add_expression(new gt_expression(nullptr, nullptr));
+          add_expression(std::make_shared<gt_expression>(nullptr, nullptr));
         } else if (c == '<' && equal_to) {
-          add_expression(new le_expression(nullptr, nullptr));
+          add_expression(std::make_shared<le_expression>(nullptr, nullptr));
         } else if (c == '<') {
-          add_expression(new lt_expression(nullptr, nullptr));
+          add_expression(std::make_shared<lt_expression>(nullptr, nullptr));
         } else {
-          add_expression(new equivalent_expression(nullptr, nullptr));
+          add_expression(std::make_shared<equivalent_expression>(nullptr, nullptr));
         }
         if (equal_to || c == '=') {
           i++; // skip next character.
@@ -218,7 +224,7 @@ std::vector<expression_t> expression_parser::parse(std::string str) {
         if (p != '|') {
           throw std::invalid_argument("Only one | found. " + std::to_string(i));
         }
-        add_expression(new or_expression(nullptr, nullptr));
+        add_expression(std::make_shared<or_expression>(nullptr, nullptr));
         i++; // skip next character.
         break;
       }
@@ -226,7 +232,7 @@ std::vector<expression_t> expression_parser::parse(std::string str) {
         if (p != '&') {
           throw std::invalid_argument("Only one & found. " + std::to_string(i));
         }
-        add_expression(new and_expression(nullptr, nullptr));
+        add_expression(std::make_shared<and_expression>(nullptr, nullptr));
         i++; // skip next character.
         break;
       }
@@ -234,7 +240,7 @@ std::vector<expression_t> expression_parser::parse(std::string str) {
       case '"': {
         // A string literal.
         std::string substring = get_full_string(str.substr(i));
-        add_expression(new literal_value_expression(std::make_shared<json_node>(substring)));
+        add_expression(std::make_shared<literal_value_expression>(std::make_shared<json_node>(substring)));
         i += substring.size() + 1;
         break;
       }
@@ -255,9 +261,9 @@ std::vector<expression_t> expression_parser::parse(std::string str) {
         size_t len;
         get_number(str.substr(i), k, j, type, len);
         if (type == INT_TYPE) {
-          add_expression(new literal_value_expression(std::make_shared<json_node>(k)));
+          add_expression(std::make_shared<literal_value_expression>(std::make_shared<json_node>(k)));
         } else if (type == REAL_TYPE) {
-          add_expression(new literal_value_expression(std::make_shared<json_node>(j)));
+          add_expression(std::make_shared<literal_value_expression>(std::make_shared<json_node>(j)));
         } else {
           throw std::invalid_argument("Invalid string found!");
         }
@@ -295,9 +301,9 @@ std::vector<expression_t> expression_parser::parse(std::string str) {
       case '[': {
         // nested filter
         std::string filter = get_full_sub_filter_statement(str.substr(i + 1));
-        expression_t back = expressions.back(); // TODO: Should this be done now?
+        value_expression_t back = std::dynamic_pointer_cast<value_expression>(expressions.back()); // TODO: Should this be done now?
         expressions.pop_back();
-        add_expression(new sub_filter_expression(back, std::make_shared<literal_value_expression>(std::make_shared<json_node>(filter)), m_provider));
+        add_expression(std::make_shared<sub_filter_expression>(back, std::make_shared<literal_value_expression>(std::make_shared<json_node>(filter)), m_provider));
         i += filter.size() + 1;
         break;
       }
@@ -326,7 +332,7 @@ std::vector<expression_t> expression_parser::parse(std::string str) {
   return expressions;
 }
 
-json_node filter_expression::parse() {
+json_node_t filter_expression::parse() {
   if (!m_expression.starts_with('?')) {
     throw std::invalid_argument("Filter doesn't start with '?'");
   }
@@ -342,8 +348,8 @@ json_node filter_expression::parse() {
       case ARRAY: {
         for (auto& n : node->as<std::vector<json_node>>()) {
           m_provider->set_current_node(std::make_shared<json_node>(n));
-          json_node returned_node = expression->eval();
-          if ((returned_node.type != NONE) && !((returned_node.type == ARRAY) && (returned_node.as<std::vector<json_node>>().empty()))) {
+          bool result = expression->eval();
+          if (result) {
             // Push back n rather than returned node.. Not sure if correct.
             retval.push_back(n);
           }
@@ -353,8 +359,8 @@ json_node filter_expression::parse() {
       case OBJECT: {
         for (auto& pair : node->as<std::map<std::string, json_node>>()) {
           m_provider->set_current_node(std::make_shared<json_node>(pair.second));
-          json_node returned_node = expression->eval();
-          if ((returned_node.type != NONE) && !((returned_node.type == ARRAY) && (returned_node.as<std::vector<json_node>>().empty()))) {
+          bool result = expression->eval();
+          if (result) {
             // Push back n rather than returned node.. Not sure if correct.
             retval.push_back(pair.second);
           }
@@ -362,11 +368,11 @@ json_node filter_expression::parse() {
         break;
       }
       default: {
-        return json_node(std::monostate());
+        return std::make_shared<json_node>(std::monostate());
       }
     }
   }
-  return json_node(retval);
+  return std::make_shared<json_node>(retval);
 };
 
 } // namespace json_path

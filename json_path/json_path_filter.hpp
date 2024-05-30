@@ -22,7 +22,7 @@ public:
   filter_expression(json_node_t root, json_node_t current, const std::string& expression) :
     m_expression(expression),
     m_provider(std::make_shared<node_provider>(root, current)) {}
-  json_node parse();
+  json_node_t parse();
 };
 
 static std::string get_full_string(const std::string& statement);
@@ -131,10 +131,6 @@ struct expression_parser {
 
   void add_expression(expression_t expr) {
     expressions.push_back(expr);
-  }
-
-  void inline add_expression(expression* expr) {
-    add_expression(expression_t(expr));
   }
 };
 
