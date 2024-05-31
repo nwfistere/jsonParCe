@@ -240,89 +240,63 @@ struct json_node {
   }
 
   bool operator&&(const json_node& other) const {
-    if (other.type != type) {
-      return false;
-    }
+    return ((bool)*this && (bool)other);
+    // if (other.type != type) {
+    //   return false;
+    // }
 
-    if (type == JSON_PATH_TYPE::ARRAY) {
-      std::vector<json_node> l = as<std::vector<json_node>>();
-      std::vector<json_node> r = other.as<std::vector<json_node>>();
+    // if (type == JSON_PATH_TYPE::ARRAY) {
+    //   std::vector<json_node> l = as<std::vector<json_node>>();
+    //   std::vector<json_node> r = other.as<std::vector<json_node>>();
 
-      for (const auto& i : l) {
-        for (const auto& j : r) {
-          if (i && j) {
-            return true;
-          }
-        }
-      }
-      return false;
-    } else if (type == JSON_PATH_TYPE::OBJECT) {
-      auto l = as<std::map<std::string, json_node>>();
-      auto r = other.as<std::map<std::string, json_node>>();
+    //   for (const auto& i : l) {
+    //     for (const auto& j : r) {
+    //       if (i && j) {
+    //         return true;
+    //       }
+    //     }
+    //   }
+    //   return false;
+    // } else if (type == JSON_PATH_TYPE::OBJECT) {
+    //   auto l = as<std::map<std::string, json_node>>();
+    //   auto r = other.as<std::map<std::string, json_node>>();
 
-      for (const auto& i : l) {
-        for (const auto& j : r) {
-          if (i.second && j.second) {
-            return true;
-          }
-        }
-      }
-      return false;
-    } else if (type == JSON_PATH_TYPE::BOOL_TYPE) {
-      auto l = as<bool>();
-      auto r = other.as<bool>();
-      return l && r;
-    } else if (type == JSON_PATH_TYPE::STRING) {
-      auto l = as<std::string>();
-      auto r = other.as<std::string>();
-      return (!(l.empty()) && !(r.empty()));
-    } else if (type == JSON_PATH_TYPE::NONE) {
-      std::cerr << "WARNING: comparing two invalid types.\n";
-      return true;
-    } else if (type == JSON_PATH_TYPE::INT_TYPE) {
-      auto l = as<json_parce_int_t>();
-      auto r = other.as<json_parce_int_t>();
-      return (l && r);
-    } else if (type == JSON_PATH_TYPE::REAL_TYPE) {
-      auto l = as<json_parce_real_t>();
-      auto r = other.as<json_parce_real_t>();
-      return l && r;
-    } else {
-      std::cerr << "operator&&: defaulting to true for type " << type << "\n";
-    }
+    //   for (const auto& i : l) {
+    //     for (const auto& j : r) {
+    //       if (i.second && j.second) {
+    //         return true;
+    //       }
+    //     }
+    //   }
+    //   return false;
+    // } else if (type == JSON_PATH_TYPE::BOOL_TYPE) {
+    //   auto l = as<bool>();
+    //   auto r = other.as<bool>();
+    //   return l && r;
+    // } else if (type == JSON_PATH_TYPE::STRING) {
+    //   auto l = as<std::string>();
+    //   auto r = other.as<std::string>();
+    //   return (!(l.empty()) && !(r.empty()));
+    // } else if (type == JSON_PATH_TYPE::NONE) {
+    //   std::cerr << "WARNING: comparing two invalid types.\n";
+    //   return true;
+    // } else if (type == JSON_PATH_TYPE::INT_TYPE) {
+    //   auto l = as<json_parce_int_t>();
+    //   auto r = other.as<json_parce_int_t>();
+    //   return (l && r);
+    // } else if (type == JSON_PATH_TYPE::REAL_TYPE) {
+    //   auto l = as<json_parce_real_t>();
+    //   auto r = other.as<json_parce_real_t>();
+    //   return l && r;
+    // } else {
+    //   std::cerr << "operator&&: defaulting to true for type " << type << "\n";
+    // }
 
-    return true;
+    // return true;
   }
 
   bool operator||(const json_node& other) const {
-    if (other.type != type) {
-      return false;
-    }
-
-    if (type == JSON_PATH_TYPE::BOOL_TYPE) {
-      auto l = as<bool>();
-      auto r = other.as<bool>();
-      return (l || r);
-    } else if (type == JSON_PATH_TYPE::STRING) {
-      auto l = as<std::string>();
-      auto r = other.as<std::string>();
-      // not sure if this is correct...
-      return (!(l.empty()) || !(r.empty()));
-    } else if (type == JSON_PATH_TYPE::INT_TYPE) {
-      auto l = as<json_parce_int_t>();
-      auto r = other.as<json_parce_int_t>();
-      return (l || r);
-    } else if (type == JSON_PATH_TYPE::REAL_TYPE) {
-      auto l = as<json_parce_real_t>();
-      auto r = other.as<json_parce_real_t>();
-      return (l || r);
-    } else if (type == JSON_PATH_TYPE::NONE) {
-      return false;
-    } else {
-      std::cerr << "operator||: defaulting to true for type " << type << "\n";
-    }
-
-    return true;
+    return ((bool)*this || (bool)other);
   }
 
   bool operator==(const json_node& other) const {
@@ -420,11 +394,12 @@ struct json_node {
         }
       }
       case(REAL_TYPE): {
-          return (as<json_parce_real_t>() > other.as<json_parce_real_t>());
+        return (as<json_parce_real_t>() > other.as<json_parce_real_t>());
+      }
+      default: {
+        throw std::invalid_argument("unknown type comparison " + std::to_string(type));
       }
     }
-
-    throw std::invalid_argument("unknown type comparison " + std::to_string(type));
   }
 
   bool operator>=(const json_node& other) const {
@@ -454,9 +429,11 @@ struct json_node {
       case(REAL_TYPE): {
         return (as<json_parce_real_t>() < other.as<json_parce_real_t>());
       }
+      default: {
+        throw std::invalid_argument("unknown type comparison " + std::to_string(type));
+      }
     }
 
-    throw std::invalid_argument("unknown type comparison " + std::to_string(type));
   }
 
   bool operator<=(const json_node& other) const {

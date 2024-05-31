@@ -350,7 +350,6 @@ json_node_t filter_expression::parse() {
           m_provider->set_current_node(std::make_shared<json_node>(n));
           bool result = expression->eval();
           if (result) {
-            // Push back n rather than returned node.. Not sure if correct.
             retval.push_back(n);
           }
         }
@@ -371,6 +370,9 @@ json_node_t filter_expression::parse() {
         return std::make_shared<json_node>(std::monostate());
       }
     }
+  }
+  if (retval.empty()) {
+    return std::make_shared<json_node>(std::monostate());
   }
   return std::make_shared<json_node>(retval);
 };

@@ -291,7 +291,7 @@ void test_filter_expressions() {
       expr
     );
     json_path::json_node_t returned_value = expression.parse();
-    if (returned_value->type == ARRAY) {
+    if (returned_value->type == json_path::JSON_PATH_TYPE::ARRAY) {
       to_json_array(std::cout, returned_value->as<std::vector<json_path::json_node>>());
     } else {
       std:: cout << "Expected array back, got type: " << returned_value->type;
@@ -307,7 +307,7 @@ void test_filter_expressions() {
       expr
     );
     json_path::json_node_t returned_value = expression.parse();
-    if (returned_value->type == ARRAY) {
+    if (returned_value->type == json_path::JSON_PATH_TYPE::ARRAY) {
       to_json_array(std::cout, returned_value->as<std::vector<json_path::json_node>>());
     } else {
       std:: cout << "Expected array back, got type: " << returned_value->type;
@@ -323,7 +323,7 @@ void test_filter_expressions() {
       expr
     );
     json_path::json_node_t returned_value = expression.parse();
-    if (returned_value->type == ARRAY) {
+    if (returned_value->type == json_path::JSON_PATH_TYPE::ARRAY) {
       to_json_array(std::cout, returned_value->as<std::vector<json_path::json_node>>());
     } else {
       std:: cout << "Expected array back, got type: " << returned_value->type;
@@ -336,7 +336,10 @@ void test_filter_expressions() {
 #define TEST_FILTER(NODE, FILTER) \
 std::cout << #NODE << "[" << FILTER << "]:\n"; \
 result = NODE.filter(FILTER); \
-to_json_array(std::cout, result->as<std::vector<json_path::json_node>>()); \
+if (result->type == json_path::JSON_PATH_TYPE::NONE) { \
+  std::cout << "returned NONE"; \
+} \
+else { to_json_array(std::cout, result->as<std::vector<json_path::json_node>>()); } \
 std::cout << "\n"
 
 void rfc_test_filter_selector() {
@@ -384,8 +387,8 @@ void rfc_test_filter_selector() {
   TEST_FILTER(root, "?@[?@.b]");
   TEST_FILTER(root["o"], "?@<3, ?@<3");
   TEST_FILTER(root["a"], "?@<2 || @.b == \"k\"");
-  TEST_FILTER(root["a"], "?match(@.b, \"[jk]\")");
-  TEST_FILTER(root["a"], "?search(@.b, \"[jk]\")");
+  TEST_FILTER(root["a"], "?match(@.b, \"[jk]\")"); // !
+  TEST_FILTER(root["a"], "?search(@.b, \"[jk]\")"); // !
   TEST_FILTER(root["o"], "?@>1 && @<4");
   TEST_FILTER(root["o"], "?@>1 && @<4");
   TEST_FILTER(root["o"], "?@.u || @.x");
