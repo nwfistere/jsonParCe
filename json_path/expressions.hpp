@@ -383,7 +383,6 @@ struct sub_filter_expression : public value_expression {
         outer_expr(outer_expr), inner_expr(inner_expr) {}
 
   bool eval() override {
-    // throw std::invalid_argument("Invalid type to call eval on.");
     return (bool)(*get_value());
   }
 
@@ -402,10 +401,6 @@ struct wildcard_expression : public selector_child_expression {
   node_provider_t m_provider;
   wildcard_expression(node_provider_t provider)
       : selector_child_expression(nullptr), m_provider(provider) {}
-
-  // bool eval() override {
-  //   return (bool) (*get_value());
-  // }
 
   json_node_t get_value() override;
 };

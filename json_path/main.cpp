@@ -80,17 +80,6 @@ std::string json = R"(
   }
 }
 )";
-/**
-NONE = JSON_TYPE::NONE,
-  OBJECT = JSON_TYPE::OBJECT,
-  ARRAY = JSON_TYPE::ARRAY,
-  NUMBER = JSON_TYPE::NUMBER, // Won't use, not specific enough..
-  STRING = JSON_TYPE::STRING,
-  BOOL_TYPE = JSON_TYPE::BOOL_TYPE,
-  NULL_TYPE = JSON_TYPE::NULL_TYPE,
-  INT_TYPE,
-  REAL_TYPE
-*/
 
 void to_json(std::ostream &oss, json_path::json_node result) {
   switch (result.type) {
@@ -167,30 +156,15 @@ int main() {
 
   json_path::json_node new_path =
       path["objectKey"]["innerArrayKey"][0]["deepInnerStringKey"];
-
-  // std::cout << "Result: " << new_path.as<std::string>() << std::endl;
-
-  // std::cout << "multiple_children\n";
   json_path::json_path multiple_children =
       path["objectKey"]["innerObjectKey"]["deepObjectArrayKey"](0, 1, 2);
   std::vector<json_path::json_node> results =
       multiple_children.get<std::vector<json_path::json_node>>();
-
-  // to_json_array(std::cout, results);
-  // std::cout << "\n";
-
-  // std::cout << "all_children\n";
   json_path::json_path all_children =
       path["objectKey"]["innerObjectKey"]["deepObjectArrayKey"]('*');
   results = all_children.get<std::vector<json_path::json_node>>();
-  // to_json_array(std::cout, results);
-  // std::cout << "\n";
-
-  // std::cout << "every_immediate_children\n";
   json_path::json_path every_immediate_children = path('*');
   results = every_immediate_children.get<std::vector<json_path::json_node>>();
-  // to_json_array(std::cout, results);
-  // std::cout << "\n";
 
   std::string rfc_example = R"(
     {
@@ -199,36 +173,22 @@ int main() {
     }
   )";
   json_path::json_path descendant_path(rfc_example);
-
-  // std::cout << "every_descendant_value\n";
   json_path::json_path every_descendant_value =
       descendant_path.descendant().wildcard();
   results = every_descendant_value.get<std::vector<json_path::json_node>>();
-  // to_json_array(std::cout, results);
-  // std::cout << "\n";
-
-  // std::cout << "get the value of key j from every descendent\n";
   results = descendant_path.descendant()["j"]
                 .get<std::vector<json_path::json_node>>();
-  // to_json_array(std::cout, results);
-  // std::cout << "\n";
-
-  // std::cout << "slice!\n";
   rfc_example = R"(["a", "b", "c", "d", "e", "f", "g"])";
   int start = 1;
   int end = 3;
   results = json_path::json_path(rfc_example)
                 .slice(&start, &end)
                 .get<std::vector<json_path::json_node>>();
-  // to_json_array(std::cout, results);
-  // std::cout << "\n";
 
   start = 5;
   results = json_path::json_path(rfc_example)
                 .slice(&start)
                 .get<std::vector<json_path::json_node>>();
-  // to_json_array(std::cout, results);
-  // std::cout << "\n";
 
   start = 1;
   end = 5;
@@ -236,8 +196,6 @@ int main() {
   results = json_path::json_path(rfc_example)
                 .slice(&start, &end, &step)
                 .get<std::vector<json_path::json_node>>();
-  // to_json_array(std::cout, results);
-  // std::cout << "\n";
 
   start = 5;
   end = 1;
@@ -245,17 +203,11 @@ int main() {
   results = json_path::json_path(rfc_example)
                 .slice(&start, &end, &step)
                 .get<std::vector<json_path::json_node>>();
-  // to_json_array(std::cout, results);
-  // std::cout << "\n";
 
   step = -1;
   results = json_path::json_path(rfc_example)
                 .slice(nullptr, nullptr, &step)
                 .get<std::vector<json_path::json_node>>();
-  // to_json_array(std::cout, results);
-  // std::cout << "\n";
-
-  // test_filter_expressions() ;
   rfc_test_filter_selector();
 
   return 0;
@@ -279,7 +231,6 @@ void test_filter_expressions() {
       "?@.b == 'kilo'",
       "?(@.b == 'kilo')",
       "?(@.b == 'kilo' || @.b > 'a' && !@.v)", // 1. (), 2. !, 3. ==, 4. >, 5.
-                                               // &&, 6. ||
       "?@>3.5",
       "?@.b",
       "?@<2 || @.b == \"k\"",
