@@ -322,8 +322,8 @@ struct selector_expression : public value_expression {
       value_t val =
           l_result->as<std::map<std::string, json_node>>().at(selector).value;
       return std::make_shared<json_node>(val);
-    } catch (std::out_of_range) {
-    } catch (std::bad_variant_access) {
+    } catch (const std::out_of_range&) {
+    } catch (const std::bad_variant_access&) {
     }
 
     return std::make_shared<json_node>(std::monostate());

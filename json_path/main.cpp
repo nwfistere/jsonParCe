@@ -3,7 +3,6 @@
 #include "json_path_filter.hpp"
 #include <iostream>
 
-static void test_filter_expressions();
 static void rfc_test_filter_selector();
 static void to_json_array(std::ostream &,
                           std::vector<json_path::json_node> results);
@@ -211,93 +210,6 @@ int main() {
   rfc_test_filter_selector();
 
   return 0;
-}
-
-void test_filter_expressions() {
-  std::string rfc_example = R"(
-{
-  "a": [3, 5, 1, 2, 4, 6,
-        {"b": "j"},
-        {"b": "k"},
-        {"b": {}},
-        {"b": "kilo"}
-       ],
-  "o": {"p": 1, "q": 2, "r": 3, "s": 5, "t": {"u": 6}},
-  "e": "f"
-}
-  )";
-
-  std::vector<std::string> a_expressions = {
-      "?@.b == 'kilo'",
-      "?(@.b == 'kilo')",
-      "?(@.b == 'kilo' || @.b > 'a' && !@.v)", // 1. (), 2. !, 3. ==, 4. >, 5.
-      "?@>3.5",
-      "?@.b",
-      "?@<2 || @.b == \"k\"",
-      "?match(@.b, \"[jk]\")",
-      "?search(@.b, \"[jk]\")",
-      "?@.b == $.x",
-      "?@ == @"};
-
-  std::vector<std::string> root_expressions = {
-      "?@.*",
-      "?@[?@.b]",
-  };
-
-  std::vector<std::string> o_expressions = {
-      "?@<3, ?@<3",
-      "?@>1 && @<4",
-      "?@.u || @.x",
-  };
-
-  json_path::json_path root(rfc_example);
-  json_path::json_node root_a = root["a"];
-  json_path::json_node root_o = root["o"];
-
-  for (auto &expr : a_expressions) {
-    std::cout << expr << ":\n";
-    json_path::filter_expression expression(
-        std::make_shared<json_path::json_node>(root),
-        std::make_shared<json_path::json_node>(root_a), expr);
-    json_path::json_node_t returned_value = expression.parse();
-    if (returned_value->type == json_path::JSON_PATH_TYPE::ARRAY) {
-      to_json_array(std::cout,
-                    returned_value->as<std::vector<json_path::json_node>>());
-    } else {
-      std::cout << "Expected array back, got type: " << returned_value->type;
-    }
-    std::cout << "\n";
-  }
-
-  for (auto &expr : root_expressions) {
-    std::cout << expr << ":\n";
-    json_path::filter_expression expression(
-        std::make_shared<json_path::json_node>(root),
-        std::make_shared<json_path::json_node>(root), expr);
-    json_path::json_node_t returned_value = expression.parse();
-    if (returned_value->type == json_path::JSON_PATH_TYPE::ARRAY) {
-      to_json_array(std::cout,
-                    returned_value->as<std::vector<json_path::json_node>>());
-    } else {
-      std::cout << "Expected array back, got type: " << returned_value->type;
-    }
-    std::cout << "\n";
-  }
-
-  for (auto &expr : o_expressions) {
-    std::cout << expr << ":\n";
-    json_path::filter_expression expression(
-        std::make_shared<json_path::json_node>(root),
-        std::make_shared<json_path::json_node>(root_o), expr);
-    json_path::json_node_t returned_value = expression.parse();
-    if (returned_value->type == json_path::JSON_PATH_TYPE::ARRAY) {
-      to_json_array(std::cout,
-                    returned_value->as<std::vector<json_path::json_node>>());
-    } else {
-      std::cout << "Expected array back, got type: " << returned_value->type;
-    }
-    std::cout << "\n";
-  }
 }
 
 #define TEST_FILTER(NODE, FILTER)                                              \

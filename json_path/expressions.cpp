@@ -25,9 +25,9 @@ json_node_t wildcard_expression::get_value() {
       return retval;
     }
     // else return empty.
-  } catch (std::out_of_range) {
-  } catch (std::bad_variant_access) {
-  }
+  } catch (const std::out_of_range&) {}
+    catch (const std::bad_variant_access&) {}
+
   return std::make_shared<json_node>(std::monostate());
 }
 

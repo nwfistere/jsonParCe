@@ -14,11 +14,7 @@
 
 namespace json_path {
 
-int on_object_value(json_parce *parser, const char *key, size_t key_length,
-                    JSON_TYPE type, const char *value, size_t value_length);
-int on_array_value(json_parce *parser, unsigned int index, JSON_TYPE type,
-                   const char *value, size_t value_length);
-json_node *parse_json(const std::string &data);
+json_node* parse_json(const std::string &data);
 
 class json_path_exception : public std::runtime_error {
 public:
@@ -46,41 +42,11 @@ public:
       : m_current_node(std::make_shared<json_node>(json)) {}
   virtual ~json_path() = default;
 
-  virtual json_path select_child(const char *segment) {
-    try {
-      return json_path(
-          std::get<std::map<std::string, json_node>>(m_current_node->value)
-              .at(segment));
-    } catch (const std::bad_variant_access &) {
-      throw json_path_exception("invalid type");
-    } catch (const std::out_of_range &) {
-      throw json_path_exception("Object does not contain key" +
-                                std::string(segment));
-    }
-    return *this; // return a child or something
-  }
+  virtual json_path select_child(const char *segment);
 
-  json_path select_child(size_t segment) {
-    try {
-      return json_path(
-          std::get<std::vector<json_node>>(m_current_node->value).at(segment));
-    } catch (const std::bad_variant_access &) {
-      throw json_path_exception("invalid type");
-    } catch (const std::out_of_range &) {
-      throw json_path_exception("Object does not contain index" +
-                                std::to_string(segment));
-    }
-    return *this;
-  }
+  json_path select_child(size_t segment);
 
-  void select_children_in_list(json_path &node, std::size_t index) {
-    try {
-      node.get<std::vector<json_node>>().push_back(
-          *select_child(index).get_current_node());
-    } catch (const std::bad_variant_access &) {
-      throw json_path_exception("invalid type");
-    }
-  }
+  void select_children_in_list(json_path &node, std::size_t index);
 
   template <class... Indexes>
   void select_children_in_list(json_path &node, std::size_t index,
@@ -150,20 +116,7 @@ public:
       : json_path(json_node(json)) {}
   ~json_path_descendant() override = default;
 
-  json_path select_child(const char *segment) override {
-    auto retNodes = std::vector<json_node>();
-    for (auto &child : get<std::vector<json_node>>()) {
-      if (child.type == JSON_PATH_TYPE::OBJECT) {
-        try {
-          retNodes.push_back(
-              std::get<std::map<std::string, json_node>>(child.value)
-                  .at(segment));
-        } catch (const std::out_of_range &) { /* do nothing */
-        }
-      }
-    }
-    return json_path_descendant(retNodes);
-  }
+  json_path select_child(const char *segment) override;
 
   virtual json_path wildcard() override { return *this; }
 };

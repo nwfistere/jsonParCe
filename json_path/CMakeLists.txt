@@ -6,6 +6,8 @@ add_executable(${PROJECT_NAME} main.cpp json_path.cpp json_node.cpp json_path_fi
 
 target_include_directories(${PROJECT_NAME} PRIVATE ../include ./filter)
 target_link_libraries(${PROJECT_NAME} PRIVATE json_parce_shared)
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Werror)
+# target_link_options(${PROJECT_NAME} PRIVATE -Wl,--gc-sections,--print-gc-sections)
 
 cmake_print_variables(CMAKE_CXX_SIMULATE_ID)
 cmake_print_variables(CMAKE_CXX_COMPILER_ID)

@@ -9,8 +9,7 @@ set(JSON_PARCE_ENABLE_SANITIZERS OFF CACHE BOOL "Enables compiling with sanitize
 set(JSON_PARCE_ENABLE_STRICT_MODE OFF CACHE BOOL "Enables compiling with strict json syntax mode (will slow down parsing)")
 set(JSON_PARCE_DEBUG_TEST OFF CACHE BOOL "Enables verbose logging during test.")
 set(JSON_PARCE_JSON_PATH ON CACHE BOOL "Enables verbose logging during test.")
-
-
+set(JSON_PARCE_ENABLE_UNUSED_SECTIONS ON CACHE BOOL "Enables flags for finding unused sections of code.")
 
 project(json_parce C)
 set(C_STANDARD 11)
@@ -65,6 +64,18 @@ if (JSON_PARCE_ENABLE_TEST_COVERAGE AND (CMAKE_C_COMPILER_ID MATCHES "GNU" OR CM
   list(APPEND JSON_PARCE_COMPILE_OPTIONS --coverage)
   list(APPEND JSON_PARCE_LINK_OPTIONS --coverage)
 endif()
+
+if(JSON_PARCE_ENABLE_UNUSED_SECTIONS)
+if(CMAKE_C_COMPILER_ID MATCHES "GNU")
+  list(APPEND JSON_PARCE_COMPILE_OPTIONS
+    -ffunction-sections
+    -fdata-sections
+  )
+  list (APPEND JSON_PARCE_LINK_OPTIONS
+    -Wl,--gc-sections,--print-gc-sections
+  )
+endif()
+endif() # JSON_PARCE_ENABLE_UNUSED_SECTIONS
 
 if(JSON_PARCE_ENABLE_SANITIZERS)
   if(CMAKE_C_COMPILER_ID MATCHES "GNU")

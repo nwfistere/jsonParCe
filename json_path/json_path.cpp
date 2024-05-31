@@ -5,6 +5,9 @@
 
 namespace json_path {
 
+static int on_object_value(json_parce *parser, const char *key, size_t key_length, JSON_TYPE type, const char *value, size_t value_length);
+static int on_array_value(json_parce *parser, unsigned int index, JSON_TYPE type, const char *value, size_t value_length);
+
 JSON_PATH_TYPE get_value_type(const value_t &value) {
   if (std::holds_alternative<json_parce_int_t>(value)) {
     return INT_TYPE;
@@ -148,7 +151,7 @@ int on_array_value(json_parce *parser, unsigned int index, JSON_TYPE type,
   return 0;
 }
 
-json_node *parse_json(const std::string &data) {
+json_node* parse_json(const std::string &data) {
   static json_parce_callbacks cbs = {.on_object_key_value_pair =
                                          on_object_value,
                                      .on_array_value = on_array_value};
@@ -286,5 +289,58 @@ json_node_t json_path::filter(const std::string &selector) {
   filter_expression expression(m_current_node, m_current_node, selector);
   return expression.parse();
 }
+
+json_path json_path::select_child(const char *segment) {
+  try {
+    return json_path(
+        std::get<std::map<std::string, json_node>>(m_current_node->value)
+            .at(segment));
+  } catch (const std::bad_variant_access &) {
+    throw json_path_exception("invalid type");
+  } catch (const std::out_of_range &) {
+    throw json_path_exception("Object does not contain key" +
+                              std::string(segment));
+  }
+  return *this; // return a child or something
+}
+
+json_path json_path::select_child(size_t segment) {
+  try {
+    return json_path(
+        std::get<std::vector<json_node>>(m_current_node->value).at(segment));
+  } catch (const std::bad_variant_access &) {
+    throw json_path_exception("invalid type");
+  } catch (const std::out_of_range &) {
+    throw json_path_exception("Object does not contain index" +
+                              std::to_string(segment));
+  }
+  return *this;
+}
+
+void json_path::select_children_in_list(json_path &node, std::size_t index) {
+  try {
+    node.get<std::vector<json_node>>().push_back(
+        *select_child(index).get_current_node());
+  } catch (const std::bad_variant_access &) {
+    throw json_path_exception("invalid type");
+  }
+}
+
+
+json_path json_path_descendant::select_child(const char *segment) {
+  auto retNodes = std::vector<json_node>();
+  for (auto &child : get<std::vector<json_node>>()) {
+    if (child.type == JSON_PATH_TYPE::OBJECT) {
+      try {
+        retNodes.push_back(
+            std::get<std::map<std::string, json_node>>(child.value)
+                .at(segment));
+      } catch (const std::out_of_range &) { /* do nothing */
+      }
+    }
+  }
+  return json_path_descendant(retNodes);
+}
+
 
 } // namespace json_path
