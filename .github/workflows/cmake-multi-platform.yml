@@ -66,6 +66,7 @@ jobs:
         -DJSON_PARCE_ENABLE_TEST=ON
         -DJSON_PARCE_ENABLE_EXAMPLE_COMPILE=ON
         -DJSON_PARCE_ENABLE_STRICT_MODE=${{ matrix.strict_define }}
+        -DCPACK_INSTALL_PREFIX=${{ github.workspace }}/${{ runner.os }}_${{ runner.arch }}
         -S ${{ github.workspace }}
 
     - name: Build
@@ -77,3 +78,14 @@ jobs:
       # Execute tests defined by the CMake configuration. Note that --build-config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       run: ctest --build-config ${{ matrix.build_type }}
+
+    - name: Package
+      if: startsWith(github.ref, 'refs/tags/')
+      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }} --target package
+
+    - name: Release
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files:
+          ${{ github.workspace }}/${{ runner.os }}_${{ runner.arch }}
