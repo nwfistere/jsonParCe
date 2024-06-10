@@ -4,7 +4,7 @@ name: CMake on multiple platforms
 
 on:
   push:
-    branches: [ "main" ]
+    tags: [ "v*" ]
   pull_request:
     branches: [ "main" ]
 
@@ -53,7 +53,8 @@ jobs:
       id: strings
       shell: bash
       run: |
-        echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+        workspace='${{ github.workspace }}'; echo "build-output-dir=${workspace//'\'/"/"}/build" >> "$GITHUB_OUTPUT"
+        echo "build-package-name=JsonParCe_${{github.ref_name}}_${{ runner.os }}_${{ runner.arch }}" >> "$GITHUB_OUTPUT"
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
@@ -66,7 +67,7 @@ jobs:
         -DJSON_PARCE_ENABLE_TEST=ON
         -DJSON_PARCE_ENABLE_EXAMPLE_COMPILE=ON
         -DJSON_PARCE_ENABLE_STRICT_MODE=${{ matrix.strict_define }}
-        -DCPACK_INSTALL_PREFIX=${{ github.workspace }}/${{ runner.os }}_${{ runner.arch }}
+        -DCPACK_PACKAGE_FILE_NAME="${{ steps.strings.outputs.build-package-name }}"
         -S ${{ github.workspace }}
 
     - name: Build
@@ -80,12 +81,14 @@ jobs:
       run: ctest --build-config ${{ matrix.build_type }}
 
     - name: Package
-      if: startsWith(github.ref, 'refs/tags/')
+      # Skip clang ubuntu files.
+      if: ((startsWith(github.ref, 'refs/tags/')) && (matrix.os == 'windows-latest' || matrix.c_compiler == 'gcc') && (matrix.strict_define == 'ON'))
       run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }} --target package
 
     - name: Release
       uses: softprops/action-gh-release@v2
-      if: startsWith(github.ref, 'refs/tags/')
+      # Skip clang ubuntu files.
+      if: ((startsWith(github.ref, 'refs/tags/')) && (matrix.os == 'windows-latest' || matrix.c_compiler == 'gcc') && (matrix.strict_define == 'ON'))
       with:
         files:
-          ${{ github.workspace }}/${{ runner.os }}_${{ runner.arch }}
+          ${{ steps.strings.outputs.build-output-dir }}/${{ steps.strings.outputs.build-package-name }}.tar.gz
