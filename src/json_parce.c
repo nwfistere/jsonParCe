@@ -1310,10 +1310,39 @@ JSON_PARCE_API size_t json_deep_parce_execute_file(
   return do_json_parce_execute_file(parser, callbacks, file, 1);
 }
 
+static size_t decode_string(char* str, size_t len) {
+  char* p = str;
+
+  for (size_t i = 0; i < len; i++) {
+    if (str[i] == '\\') {
+      char next = str[i + 1];
+      switch(str[i + 1]) {
+        case '"': {
+          *p = next;
+          i++;
+          break;
+        }
+      }
+    } else {
+      *p = str[i];
+    }
+    p++;
+  }
+  *p = '\0';
+
+  return strlen(str);
+}
+
 JSON_PARCE_API char *json_parce_string(const char *str, size_t len) {
   char *ret = (char *)malloc((len + 1) * sizeof(char));
   memcpy(ret, str, len);
   ret[len] = '\0';
+
+  if (memchr(ret, '\\', len) != NULL) {
+    // need to decode characters.
+    len = decode_string(ret, len);
+  }
+
   return ret;
 }
 
