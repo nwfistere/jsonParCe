@@ -663,15 +663,15 @@ void validate_value(JSON_TYPE type, const char *value, size_t value_length) {
 }
 
 int test_json_parce_string() {
-  char* item = "\\\"Hello, world\\\"!";
-  char* retval = json_parce_string(item, strlen(item));
-  char* expected = "\"Hello, world\"!";
+  char *item = "\\\"Hello, world\\\"!";
+  char *retval = json_parce_string(item, strlen(item));
+  char *expected = "\"Hello, world\"!";
   printf("test_json_parce_string - Expecting <%s> == <%s>\n", retval, expected);
   assert(strcmp(retval, expected) == 0);
   free(retval);
 
   item = "\\\"\\\"\\\"";
-  retval = json_parce_string(item, strlen(item));\
+  retval = json_parce_string(item, strlen(item));
   expected = "\"\"\"";
   printf("test_json_parce_string - Expecting <%s> == <%s>\n", retval, expected);
   assert(strcmp(retval, expected) == 0);
@@ -679,4 +679,3 @@ int test_json_parce_string() {
 
   return 0;
 }
-
