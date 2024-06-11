@@ -75,7 +75,7 @@ int on_deep_array_value_cb(json_parce *parser, unsigned int index,
 
   char parent[100] = {0};
   if (parser->current_depth->key) {
-    sprintf(parent, "%.*s", parser->current_depth->key_len,
+    sprintf(parent, "%.*s", (int)parser->current_depth->key_len,
             parser->current_depth->key);
   } else if (parser->current_depth->depth > 0) {
     sprintf(parent, "%d", (int)parser->current_depth->array_index);
@@ -102,7 +102,7 @@ int on_deep_object_key_value_pair_cb(json_parce *parser, const char *key,
   char parent[100] = {0};
   char log_key[100] = {0};
   if (parser->current_depth->key) {
-    sprintf(parent, "%.*s", parser->current_depth->key_len,
+    sprintf(parent, "%.*s", (int)parser->current_depth->key_len,
             parser->current_depth->key);
   } else if (parser->current_depth->depth > 0) {
     sprintf(parent, "%d", (int)parser->current_depth->array_index);
@@ -339,7 +339,7 @@ int test_JSONTestSuite_array(json_parce *parser, unsigned int index,
 
   char parent[100] = {0};
   if (parser->current_depth->key) {
-    sprintf(parent, "%.*s", parser->current_depth->key_len,
+    sprintf(parent, "%.*s", (int)parser->current_depth->key_len,
             parser->current_depth->key);
   } else if (parser->current_depth->depth > 0) {
     sprintf(parent, "%d", (int)parser->current_depth->array_index);
@@ -366,7 +366,7 @@ int test_JSONTestSuite_object(json_parce *parser, const char *key,
   char parent[100] = {0};
   char log_key[100] = {0};
   if (parser->current_depth->key) {
-    sprintf(parent, "%.*s", parser->current_depth->key_len,
+    sprintf(parent, "%.*s", (int)parser->current_depth->key_len,
             parser->current_depth->key);
   } else if (parser->current_depth->depth > 0) {
     sprintf(parent, "%d", (int)parser->current_depth->array_index);
