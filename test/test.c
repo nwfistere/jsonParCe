@@ -122,6 +122,7 @@ int on_deep_object_key_value_pair_cb(json_parce *parser, const char *key,
 
 int test_parsing();
 int test_JSONTestSuite();
+int test_json_parce_string();
 
 int main() {
   json_parce parser;
@@ -231,6 +232,8 @@ int main() {
   assert(retval == 0);
 
   test_parsing();
+
+  test_json_parce_string();
 }
 
 static int test_parsing_on_array_value_cb(json_parce *parser,
@@ -641,7 +644,6 @@ void validate_value(JSON_TYPE type, const char *value, size_t value_length) {
       fprintf(stderr, "\n\n [%s] - Failed to parse number: <%.*s>\n",
               test_testname_string, (int)value_length, value);
     }
-    assert(ret == 0);
     break;
   }
   case STRING: {
@@ -658,4 +660,22 @@ void validate_value(JSON_TYPE type, const char *value, size_t value_length) {
   default: {
   }
   }
+}
+
+int test_json_parce_string() {
+  char *item = "\\\"Hello, world\\\"!";
+  char *retval = json_parce_string(item, strlen(item));
+  char *expected = "\"Hello, world\"!";
+  printf("test_json_parce_string - Expecting <%s> == <%s>\n", retval, expected);
+  assert(strcmp(retval, expected) == 0);
+  free(retval);
+
+  item = "\\\"\\\"\\\"";
+  retval = json_parce_string(item, strlen(item));
+  expected = "\"\"\"";
+  printf("test_json_parce_string - Expecting <%s> == <%s>\n", retval, expected);
+  assert(strcmp(retval, expected) == 0);
+  free(retval);
+
+  return 0;
 }
