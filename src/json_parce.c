@@ -71,8 +71,8 @@
     SET_TYPE_VALUE(type, parser->array_item_mark, l_value_length)              \
     int callback_retval = 0;                                                   \
     if ((callback_retval = callbacks->on_array_value(                          \
-             parser, parser->array_index, type, parser->array_item_mark,       \
-             l_value_length)) > 0) {                                           \
+             parser, parser->array_index, type, (parser->array_item_mark),     \
+             (l_value_length))) > 0) {                                         \
       SET_ERRNO(callback_retval == 2 ? ERRNO_CALLBACK_REQUESTED_STOP           \
                                      : ERRNO_CALLBACK_FAILED);                 \
       goto error;                                                              \
@@ -1312,7 +1312,8 @@ JSON_PARCE_API size_t json_deep_parce_execute_file(
 
 JSON_PARCE_API char *json_parce_string(const char *str, size_t len) {
   char *ret = (char *)malloc((len + 1) * sizeof(char));
-  memcpy(ret, str, len + 1);
+  memcpy(ret, str, len);
+  ret[len] = '\0';
   return ret;
 }
 
@@ -1343,6 +1344,12 @@ JSON_PARCE_API int json_parce_int(const char *str, size_t len,
 
   if (len > JSON_PARCE_INT_MAX_DIG) {
     return ERRNO_OUT_OF_RANGE;
+  }
+
+  if (memchr(str, '.', len) != NULL) {
+    // sscanf will convert a double into an int, so check for a decimal in the number string.
+    // TODO: What about 1.00000? Do we still want thaat to be a double?
+    return ERRNO_INVALID_CHARACTER;
   }
 
   strncpy(lstr, str, len);
