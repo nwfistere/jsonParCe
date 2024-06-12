@@ -305,6 +305,60 @@ int process_unicode_escape_string(const char *input, char **output) {
   return 0;
 }
 
+size_t decode_string(char *str, size_t len) {
+  char *p = str;
+
+  for (size_t i = 0; i < len; i++) {
+    if (str[i] == '\\') {
+      char next = str[i + 1];
+      switch (next) {
+        case '/':
+        case '\'':
+        case '\\':
+        case '"': {
+          *p = next;
+          i++;
+          break;
+        }
+        case 'b': {
+          *p = '\b';
+          i++;
+          break;
+        }
+        case 'r': {
+          *p = '\r';
+          i++;
+          break;
+        }
+        case 'n': {
+          *p = '\n';
+          i++;
+          break;
+        }
+        case 'f': {
+          *p = '\f';
+          i++;
+          break;
+        }
+        case 't': {
+          *p = '\t';
+          i++;
+          break;
+        }
+        default: {
+          *p = str[i];
+        }
+      }
+    } else {
+      *p = str[i];
+    }
+    p++;
+  }
+  *p = '\0';
+
+  return strlen(str);
+}
+
 size_t strlen16(register const char16_t *string) {
   if (!string)
     return 0;

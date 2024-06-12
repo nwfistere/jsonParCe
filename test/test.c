@@ -689,6 +689,13 @@ int test_json_parce_string() {
   assert(strcmp(retval, expected) == 0);
   free(retval);
 
+  item = "\\\"\\'\\/\\b\\r\\n\\t\\f";
+  retval = json_parce_string(item, strlen(item));
+  expected = "\"'/\b\r\n\t\f";
+  printf("test_json_parce_string - Expecting <%s> == <%s>\n", retval, expected);
+  assert(strcmp(retval, expected) == 0);
+  free(retval);
+
   return 0;
 }
 

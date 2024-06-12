@@ -49,6 +49,8 @@ int hex_digit_to_int(char c);
 
 int codepoint_to_utf8(unsigned int codepoint, char *output);
 
+size_t decode_string(char *str, size_t len);
+
 /**
  * Converts \uXXXX encoded characters to multibyte unicode characters.
  * Returns 0 on success
