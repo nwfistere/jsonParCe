@@ -48,7 +48,8 @@ typedef enum JSON_TYPE {
   XX(INVALID_ENCODING, "invalid encoding")                                     \
   XX(INCOMPLETE_DATA, "buffer ended before end of json")                       \
   XX(CALLBACK_REQUESTED_STOP, "stop requested by callback")                    \
-  XX(OUT_OF_RANGE, "value is out of range")
+  XX(OUT_OF_RANGE, "value is out of range")                                    \
+  XX(INVALID_OBJECT_KEY, "invalid object key")
 
 #define ERRNO_GEN(n, s) ERRNO_##n,
 enum json_errno { ERRNO_MAP(ERRNO_GEN) };
@@ -97,21 +98,16 @@ typedef struct json_parce {
 
 #ifdef JSON_PARCE_STRICT_MODE
   // Flags for the current state
-  int fs_significand : 1;
-  int fs_fraction : 1;
-  int fs_exponent : 1;
+  unsigned short fs_significand : 1;
+  unsigned short fs_fraction : 1;
+  unsigned short fs_exponent : 1;
 
   // Flags for the checks in the state.
-  int f_minus : 1;
-  // int f_dec : 1;
-  // int f_e : 1;
-  int f_nonzero : 1;
-  int f_zero : 1;
-  // int f_plus : 1;
+  unsigned short f_minus : 1;
+  unsigned short f_nonzero : 1;
+  unsigned short f_zero : 1;
+  unsigned short : 2;
 
-  // Not sure if I want to make this universal or just keep it for the unicode
-  // handling. Could clean up a lot of code but may make it less readable? Ha ha
-  // ha
   unsigned int return_state;
 #endif
 

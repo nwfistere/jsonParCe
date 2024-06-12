@@ -5,19 +5,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-// TODO: if not __func__ just set it to unknown or something.
-#ifdef __func__
 #define SET_ERR(e)                                                             \
   parser->err = (e);                                                           \
   parser->line = __LINE__;                                                     \
   parser->file = __FILE__;                                                     \
   parser->func = __func__;
-#else
-#define SET_ERR(e)                                                             \
-  parser->err = (e);                                                           \
-  parser->line = __LINE__;                                                     \
-  parser->file = __FILE__;
-#endif // #ifdef __func__
 
 #define SET_ERRNO(e)                                                           \
   do {                                                                         \
@@ -52,8 +44,13 @@
     size_t l_value_length = (VALUE_LENGTH);                                    \
     SET_TYPE_VALUE(type, parser->object_value_mark, l_value_length)            \
     int callback_retval = 0;                                                   \
+    char* key = json_parce_string(parser->object_key_mark, parser->object_key_len);  \
+    if (!key) {                                                                \
+      SET_ERRNO(ERRNO_INVALID_OBJECT_KEY);                                     \
+      goto error;                                                              \
+    }                                                                          \
     if ((callback_retval = callbacks->on_object_key_value_pair(                \
-             parser, parser->object_key_mark, parser->object_key_len, type,    \
+             parser, key, strlen(key), type,    \
              parser->object_value_mark, l_value_length)) > 0) {                \
       SET_ERRNO(callback_retval == 2 ? ERRNO_CALLBACK_REQUESTED_STOP           \
                                      : ERRNO_CALLBACK_FAILED);                 \
@@ -1322,6 +1319,9 @@ static size_t decode_string(char *str, size_t len) {
         i++;
         break;
       }
+      default: {
+        *p = str[i];
+      }
       }
     } else {
       *p = str[i];
@@ -1341,6 +1341,15 @@ JSON_PARCE_API char *json_parce_string(const char *str, size_t len) {
   if (memchr(ret, '\\', len) != NULL) {
     // need to decode characters.
     len = decode_string(ret, len);
+
+    char* new_ret = NULL;
+    int status = process_unicode_escape_string(ret, &new_ret);
+    if (status == 0) {
+      free(ret);
+      ret = new_ret;
+    } else {
+      return NULL;
+    }
   }
 
   return ret;

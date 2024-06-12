@@ -45,6 +45,12 @@ JSON_PARCE_API int c16strtomb(const char16_t *str, size_t str_sz, int encoding,
 JSON_PARCE_API int get_file_info(const char *filepath, FILE **fp, int *encoding,
                                  size_t *file_size);
 
+int hex_digit_to_int(char c);
+
+int codepoint_to_utf8(unsigned int codepoint, char *output);
+
+JSON_PARCE_API int process_unicode_escape_string(const char *input, char** output);
+
 // https://stackoverflow.com/a/22128415
 size_t strlen16(register const char16_t *string);
 size_t strlen32(register const char32_t *string);
