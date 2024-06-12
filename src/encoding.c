@@ -209,7 +209,7 @@ unsigned int unicode_escape_to_codepoint(const char *str) {
   for (int i = 0; i < 4; i++) {
     int digit = hex_digit_to_int(str[i]);
     if (digit == -1) {
-      return (unsigned int) -1;
+      return (unsigned int)-1;
     }
     value = value * 16 + digit;
   }
@@ -219,7 +219,7 @@ unsigned int unicode_escape_to_codepoint(const char *str) {
 // Function to encode a Unicode code point into a UTF-8 byte sequence
 int codepoint_to_utf8(unsigned int codepoint, char *output) {
   if (codepoint <= 0x7F) {
-    output[0] = (char) codepoint;
+    output[0] = (char)codepoint;
     return 1;
   } else if (codepoint <= 0x7FF) {
     output[0] = (char)(0xC0 | (codepoint >> 6));

@@ -1388,12 +1388,19 @@ JSON_PARCE_API int json_parce_int(const char *str, size_t len,
   if (memchr(str, '.', len) != NULL) {
     // sscanf will convert a double into an int, so check for a decimal in the
     // number string.
-    // TODO: What about 1.00000? Do we still want thaat to be a double?
+    // TODO: What about 1.00000? Do we still want that to be a double?
     return ERRNO_INVALID_CHARACTER;
   }
 
   strncpy(lstr, str, len);
-  int status = sscanf(lstr, "%lld", ret);
+  int status;
+  if ((memchr(str, 'e', len) != NULL) || memchr(str, 'E', len) != NULL) {
+    status = sscanf(lstr, "%lld", ret);
+  } else {
+    json_parce_real_t real;
+    status = sscanf(lstr, "%lf", &real);
+    *ret = (json_parce_int_t)real;
+  }
   if (status != 1) {
     return ERRNO_OUT_OF_RANGE;
   }
