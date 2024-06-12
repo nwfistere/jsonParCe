@@ -1,5 +1,5 @@
-#include "json_parce.h"
 #include "encoding.h"
+#include "json_parce.h"
 #include "string.h"
 #include <assert.h>
 #include <locale.h>
@@ -510,8 +510,8 @@ int test_JSONTestSuite() {
         if (parser.err) {
           fprintf(stderr, "\t%s (%d) \n", json_errno_messages[parser.err],
                   parser.err);
-          fprintf(stderr, "\t%s(%d) - %s()\n\n", parser.file,
-                  parser.line, parser.func);
+          fprintf(stderr, "\t%s(%d) - %s()\n\n", parser.file, parser.line,
+                  parser.func);
         }
       }
     } else if (strncmp(filename, "n_", 2) == 0) {
@@ -659,7 +659,8 @@ void validate_value(JSON_TYPE type, const char *value, size_t value_length) {
     if (str != NULL) {
       free(str);
     } else {
-      fprintf(stderr, "\n\n [%s] - Failed to parse string: <%.*s>\n", test_testname_string, (int)value_length, value);
+      fprintf(stderr, "\n\n [%s] - Failed to parse string: <%.*s>\n",
+              test_testname_string, (int)value_length, value);
     }
     break;
   }
@@ -785,21 +786,23 @@ int test_JSONTestSuite_transform() {
   return retval;
 }
 
-#define TEST_UNICODE(INPUT, EXPECTED) \
-status = process_unicode_escape_string((INPUT), &output); \
-assert(status == 0); \
-printf("test_process_unicode_string - Expecting <%s> == <%s>\n", output, (EXPECTED)); \
-assert(strcmp(output, (EXPECTED)) == 0); \
-free(output)
+#define TEST_UNICODE(INPUT, EXPECTED)                                          \
+  status = process_unicode_escape_string((INPUT), &output);                    \
+  assert(status == 0);                                                         \
+  printf("test_process_unicode_string - Expecting <%s> == <%s>\n", output,     \
+         (EXPECTED));                                                          \
+  assert(strcmp(output, (EXPECTED)) == 0);                                     \
+  free(output)
 
-#define TEST_UNICODE_ERROR(INPUT, EXPECTED) \
-status = process_unicode_escape_string((INPUT), &output); \
-printf("test_process_unicode_string - Expecting status <%d> == <%d>\n", status, (EXPECTED)); \
-assert(status == EXPECTED);
+#define TEST_UNICODE_ERROR(INPUT, EXPECTED)                                    \
+  status = process_unicode_escape_string((INPUT), &output);                    \
+  printf("test_process_unicode_string - Expecting status <%d> == <%d>\n",      \
+         status, (EXPECTED));                                                  \
+  assert(status == EXPECTED);
 
 int test_process_unicode_string() {
   int status;
-  char* output = NULL;
+  char *output = NULL;
   printf("\n\ntest_process_unicode_string\n\n");
 
   TEST_UNICODE("Hello world!", "Hello world!");
@@ -807,7 +810,8 @@ int test_process_unicode_string() {
   TEST_UNICODE("\\u0000", "");
   TEST_UNICODE("\\u0021", "!");
   TEST_UNICODE("\\u00FF\\u0021", "\u00FF!");
-  TEST_UNICODE("\\uFFE8\\uFFE8\\uFFE8\\uFFE8\\uFFE8\\uFFE8\\uFFE8", "\uFFE8\uFFE8\uFFE8\uFFE8\uFFE8\uFFE8\uFFE8");
+  TEST_UNICODE("\\uFFE8\\uFFE8\\uFFE8\\uFFE8\\uFFE8\\uFFE8\\uFFE8",
+               "\uFFE8\uFFE8\uFFE8\uFFE8\uFFE8\uFFE8\uFFE8");
   TEST_UNICODE("\\uD83D\\uDE00", "\U0001F600");
   TEST_UNICODE("\\uD888\\uDFAF", "\U000323AF");
   // TEST_UNICODE("\\uD888\\uDFAF", "\U000323AF");
@@ -821,9 +825,10 @@ int test_process_unicode_string() {
   TEST_UNICODE("!!\\uD800\\uDC00\\uFFE8!!", "!!\U00010000\uFFE8!!");
   TEST_UNICODE("!!\\uD800\\uDC000\\uFFE8!!", "!!\U000100000\uFFE8!!");
 
-  TEST_UNICODE_ERROR("\\uD800!\\uDC00", -1); // character between high and low surrogates.
-  TEST_UNICODE_ERROR("\\uD800", -1); // lonely high surrogate
-  TEST_UNICODE_ERROR("\\uDC00", -1); // lonely low surrogate
+  TEST_UNICODE_ERROR("\\uD800!\\uDC00",
+                     -1); // character between high and low surrogates.
+  TEST_UNICODE_ERROR("\\uD800", -1);        // lonely high surrogate
+  TEST_UNICODE_ERROR("\\uDC00", -1);        // lonely low surrogate
   TEST_UNICODE_ERROR("\\uD800\\uD800", -2); // two high surrogate
   TEST_UNICODE_ERROR("\\uD800\\u0021", -2); // high surrogate + utf-8 character.
   TEST_UNICODE_ERROR("\\u0021\\uD800", -1); // utf-8 character + high surrogate.

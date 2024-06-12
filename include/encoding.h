@@ -49,7 +49,8 @@ int hex_digit_to_int(char c);
 
 int codepoint_to_utf8(unsigned int codepoint, char *output);
 
-JSON_PARCE_API int process_unicode_escape_string(const char *input, char** output);
+JSON_PARCE_API int process_unicode_escape_string(const char *input,
+                                                 char **output);
 
 // https://stackoverflow.com/a/22128415
 size_t strlen16(register const char16_t *string);
