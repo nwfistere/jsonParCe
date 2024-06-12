@@ -49,6 +49,13 @@ int hex_digit_to_int(char c);
 
 int codepoint_to_utf8(unsigned int codepoint, char *output);
 
+/**
+ * Converts \uXXXX encoded characters to multibyte unicode characters.
+ * Returns 0 on success
+ * -1 when a character is encoded incorrectly or the high surrogate is invalid
+ * -2 when the low surrogate is invalid.
+ * 1 on malloc failure.
+ */
 JSON_PARCE_API int process_unicode_escape_string(const char *input,
                                                  char **output);
 

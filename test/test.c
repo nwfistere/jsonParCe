@@ -814,7 +814,6 @@ int test_process_unicode_string() {
                "\uFFE8\uFFE8\uFFE8\uFFE8\uFFE8\uFFE8\uFFE8");
   TEST_UNICODE("\\uD83D\\uDE00", "\U0001F600");
   TEST_UNICODE("\\uD888\\uDFAF", "\U000323AF");
-  // TEST_UNICODE("\\uD888\\uDFAF", "\U000323AF");
   TEST_UNICODE("\\uDBFF\\uDFFD", "\U0010FFFD");
   TEST_UNICODE("\\uDB40\\uDDEF", "\U000E01EF");
   TEST_UNICODE("\\uD884\\uDF4A", "\U0003134a");
