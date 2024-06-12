@@ -1395,11 +1395,11 @@ JSON_PARCE_API int json_parce_int(const char *str, size_t len,
   strncpy(lstr, str, len);
   int status;
   if ((memchr(str, 'e', len) != NULL) || memchr(str, 'E', len) != NULL) {
-    status = sscanf(lstr, "%lld", ret);
-  } else {
     json_parce_real_t real;
     status = sscanf(lstr, "%lf", &real);
     *ret = (json_parce_int_t)real;
+  } else {
+    status = sscanf(lstr, "%lld", ret);
   }
   if (status != 1) {
     return ERRNO_OUT_OF_RANGE;
