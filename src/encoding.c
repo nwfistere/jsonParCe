@@ -192,6 +192,119 @@ JSON_PARCE_API int c16strtomb(const char16_t *str, size_t len, int encoding,
   return 0;
 }
 
+// Function to convert a hexadecimal digit to a decimal value
+int hex_digit_to_int(char c) {
+  if ('0' <= c && c <= '9')
+    return c - '0';
+  if ('a' <= c && c <= 'f')
+    return 10 + c - 'a';
+  if ('A' <= c && c <= 'F')
+    return 10 + c - 'A';
+  return -1; // Invalid hexadecimal digit
+}
+
+// Function to convert a Unicode escape sequence to a Unicode code point
+unsigned int unicode_escape_to_codepoint(const char *str) {
+  unsigned int value = 0;
+  for (int i = 0; i < 4; i++) {
+    int digit = hex_digit_to_int(str[i]);
+    if (digit == -1) {
+      return (unsigned int) -1;
+    }
+    value = value * 16 + digit;
+  }
+  return value;
+}
+
+// Function to encode a Unicode code point into a UTF-8 byte sequence
+int codepoint_to_utf8(unsigned int codepoint, char *output) {
+  if (codepoint <= 0x7F) {
+    output[0] = (char) codepoint;
+    return 1;
+  } else if (codepoint <= 0x7FF) {
+    output[0] = (char)(0xC0 | (codepoint >> 6));
+    output[1] = 0x80 | (codepoint & 0x3F);
+    return 2;
+  } else if (codepoint <= 0xFFFF) {
+    output[0] = (char)(0xE0 | (codepoint >> 12));
+    output[1] = 0x80 | ((codepoint >> 6) & 0x3F);
+    output[2] = 0x80 | (codepoint & 0x3F);
+    return 3;
+  } else if (codepoint <= 0x10FFFF) {
+    output[0] = (char)(0xF0 | (codepoint >> 18));
+    output[1] = 0x80 | ((codepoint >> 12) & 0x3F);
+    output[2] = 0x80 | ((codepoint >> 6) & 0x3F);
+    output[3] = 0x80 | (codepoint & 0x3F);
+    return 4;
+  } else {
+    fprintf(stderr, "Invalid Unicode code point: %X\n", codepoint);
+    exit(EXIT_FAILURE);
+  }
+}
+
+// Function to process the string and replace Unicode escape sequences
+int process_unicode_escape_string(const char *input, char **output) {
+  size_t len = strlen(input);
+  *output =
+      malloc(len * 4 + 1); // Allocate memory for the output string (worst case:
+                           // every char is replaced by a 4-byte UTF-8 char)
+  if (!output) {
+    return 1;
+  }
+
+  const char *p = input;
+  char *q = *output;
+
+  while (*p) {
+    if (*p == '\\' && *(p + 1) == 'u' && p + 6 <= input + len) {
+      unsigned int codepoint1 = unicode_escape_to_codepoint(p + 2);
+      p += 6;
+
+      if (codepoint1 == -1) {
+        free(*output);
+        return -1;
+      }
+
+      if (0xD800 <= codepoint1 && codepoint1 <= 0xDBFF) {
+        if (*p == '\\' && *(p + 1) == 'u' && p + 6 <= input + len) {
+          // This is a high surrogate and the next one should be a low surrogate
+          unsigned int codepoint2 = unicode_escape_to_codepoint(p + 2);
+
+          if (codepoint2 == -1) {
+            free(*output);
+            return -2;
+          }
+
+          if (0xDC00 <= codepoint2 && codepoint2 <= 0xDFFF) {
+            // Combine surrogate pair into a single code point
+            codepoint1 =
+                ((codepoint1 - 0xD800) << 10 | (codepoint2 - 0xDC00)) + 0x10000;
+            p += 6; // Move past the second part of the surrogate pair
+          } else {
+            free(*output);
+            return -2;
+          }
+        } else {
+          // codepoint is an invalid high surrogate without a low surrogate.
+          free(*output);
+          return -1;
+        }
+      } else if (0xDC00 <= codepoint1 && codepoint1 <= 0xDFFF) {
+        // invalid low surrogate without high surrogate.
+        free(*output);
+        return -1;
+      }
+
+      q += codepoint_to_utf8(codepoint1, q);
+    } else {
+      *q++ = *p++;
+    }
+  }
+  *q = '\0'; // Null-terminate the output string
+
+  return 0;
+}
+
 size_t strlen16(register const char16_t *string) {
   if (!string)
     return 0;

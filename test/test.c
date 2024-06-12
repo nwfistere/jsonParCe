@@ -1,3 +1,4 @@
+#include "encoding.h"
 #include "json_parce.h"
 #include "string.h"
 #include <assert.h>
@@ -41,7 +42,7 @@ int on_object_value_cb(json_parce *parser, const char *key, size_t key_length,
   size_t log_value_len = 0;
   char log_key[100] = {0};
 
-  get_log_string(10, value, value_length, &log_value, &log_value_len);
+  get_log_string(20, value, value_length, &log_value, &log_value_len);
   snprintf(log_key, key_length + 1, "%s", key);
 
   print_values(test_testname_string, 0, "{ROOT}", log_key, -1, type, log_value);
@@ -56,7 +57,7 @@ int on_array_value_cb(json_parce *parser, unsigned int index, JSON_TYPE type,
 #ifdef JSON_PARCE_ENABLE_TEST_DEBUG
   char *log_value = NULL;
   size_t log_value_len = 0;
-  get_log_string(10, value, value_length, &log_value, &log_value_len);
+  get_log_string(20, value, value_length, &log_value, &log_value_len);
 
   print_values(test_testname_string, 0, "[ROOT]", NULL, index, type, log_value);
   free(log_value);
@@ -71,7 +72,7 @@ int on_deep_array_value_cb(json_parce *parser, unsigned int index,
 #ifdef JSON_PARCE_ENABLE_TEST_DEBUG
   char *log_value = NULL;
   size_t log_value_len = 0;
-  get_log_string(10, value, value_length, &log_value, &log_value_len);
+  get_log_string(20, value, value_length, &log_value, &log_value_len);
 
   char parent[100] = {0};
   if (parser->current_depth->key) {
@@ -97,7 +98,7 @@ int on_deep_object_key_value_pair_cb(json_parce *parser, const char *key,
 #ifdef JSON_PARCE_ENABLE_TEST_DEBUG
   char *log_value = NULL;
   size_t log_value_len = 0;
-  get_log_string(10, value, value_length, &log_value, &log_value_len);
+  get_log_string(20, value, value_length, &log_value, &log_value_len);
 
   char parent[100] = {0};
   char log_key[100] = {0};
@@ -122,7 +123,9 @@ int on_deep_object_key_value_pair_cb(json_parce *parser, const char *key,
 
 int test_parsing();
 int test_JSONTestSuite();
+int test_JSONTestSuite_transform();
 int test_json_parce_string();
+int test_process_unicode_string();
 
 int main() {
   json_parce parser;
@@ -231,9 +234,14 @@ int main() {
   retval = test_JSONTestSuite();
   assert(retval == 0);
 
+  retval = test_JSONTestSuite_transform();
+  assert(retval == 0);
+
   test_parsing();
 
   test_json_parce_string();
+
+  test_process_unicode_string();
 }
 
 static int test_parsing_on_array_value_cb(json_parce *parser,
@@ -338,7 +346,7 @@ int test_JSONTestSuite_array(json_parce *parser, unsigned int index,
 #ifdef JSON_PARCE_ENABLE_TEST_DEBUG
   char *log_value = NULL;
   size_t log_value_len = 0;
-  get_log_string(10, value, value_length, &log_value, &log_value_len);
+  get_log_string(20, value, value_length, &log_value, &log_value_len);
 
   char parent[100] = {0};
   if (parser->current_depth->key) {
@@ -364,7 +372,7 @@ int test_JSONTestSuite_object(json_parce *parser, const char *key,
 #ifdef JSON_PARCE_ENABLE_TEST_DEBUG
   char *log_value = NULL;
   size_t log_value_len = 0;
-  get_log_string(10, value, value_length, &log_value, &log_value_len);
+  get_log_string(20, value, value_length, &log_value, &log_value_len);
 
   char parent[100] = {0};
   char log_key[100] = {0};
@@ -407,7 +415,7 @@ int test_JSONTestSuite() {
   sprintf(filepath, "%s\\*.json", path);
 
   if ((hFind = FindFirstFile(filepath, &fd)) == INVALID_HANDLE_VALUE) {
-    fprintf(stderr, "Failed to open directory \"%s\"", path);
+    fprintf(stderr, "Failed to open directory \"%s\"\n", path);
     return -1;
   }
 
@@ -502,8 +510,8 @@ int test_JSONTestSuite() {
         if (parser.err) {
           fprintf(stderr, "\t%s (%d) \n", json_errno_messages[parser.err],
                   parser.err);
-          fprintf(stderr, "\t%s.%s(%d)\n\n", parser.func, parser.file,
-                  parser.line);
+          fprintf(stderr, "\t%s(%d) - %s()\n\n", parser.file, parser.line,
+                  parser.func);
         }
       }
     } else if (strncmp(filename, "n_", 2) == 0) {
@@ -648,8 +656,12 @@ void validate_value(JSON_TYPE type, const char *value, size_t value_length) {
   }
   case STRING: {
     char *str = json_parce_string(value, value_length);
-    assert(str != NULL);
-    free(str);
+    if (str != NULL) {
+      free(str);
+    } else {
+      fprintf(stderr, "\n\n [%s] - Failed to parse string: <%.*s>\n",
+              test_testname_string, (int)value_length, value);
+    }
     break;
   }
   case BOOL_TYPE: {
@@ -676,6 +688,150 @@ int test_json_parce_string() {
   printf("test_json_parce_string - Expecting <%s> == <%s>\n", retval, expected);
   assert(strcmp(retval, expected) == 0);
   free(retval);
+
+  return 0;
+}
+
+int test_JSONTestSuite_transform() {
+  printf("\n\ntest_JSONTestSuite_transform()\n\n");
+  int retval = 0;
+  json_parce parser;
+
+  size_t filesize;
+  char *filename;
+  char *path = "./test_transform";
+  char filepath[1024] = {0};
+
+  json_parce_callbacks deep_cbs = {.on_array_value = test_JSONTestSuite_array,
+                                   .on_object_key_value_pair =
+                                       test_JSONTestSuite_object};
+
+#ifdef _WIN32
+  WIN32_FIND_DATA fd;
+  HANDLE hFind = NULL;
+
+  sprintf(filepath, "%s\\*.json", path);
+
+  if ((hFind = FindFirstFile(filepath, &fd)) == INVALID_HANDLE_VALUE) {
+    fprintf(stderr, "Failed to open directory \"%s\"", path);
+    return -1;
+  }
+
+  do {
+    if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+      // skip directories
+      continue;
+    }
+
+    sprintf(filepath, "%s\\%s", path, fd.cFileName);
+    filesize = fd.nFileSizeLow;
+    filename = fd.cFileName;
+#else
+  DIR *d = opendir(path);
+
+  if (!d) {
+    fprintf(stderr, "Failed to open directory \"%s\"\n", path);
+    return -1;
+  }
+
+  struct dirent *entry;
+
+  while ((entry = readdir(d)) != NULL) {
+#ifdef _DIRENT_HAVE_D_TYPE
+    if (entry->d_type != DT_REG) {
+      // skip anything that's not a normal file.
+      continue;
+    }
+#endif
+    sprintf(filepath, "%s/%s", path, entry->d_name);
+
+    struct stat sb = {0};
+    if (stat(filepath, &sb) != 0) {
+      fprintf(stderr, "Failed to get file info using stat. \"%s\"\n", filepath);
+      return -1;
+    }
+
+    filesize = sb.st_size;
+    filename = entry->d_name;
+#endif // WIN32
+
+    test_testname_string = filename;
+
+    json_parce_init(&parser);
+    size_t retval = json_deep_parce_execute_file(&parser, &deep_cbs, filepath);
+
+    if (parser.err || (filesize != retval)) {
+      fprintf(stderr, "\nERROR: \"%s\" FAILED\n", filepath);
+      if (filesize != retval) {
+        fprintf(stderr, "\texpected: %zd, actual: %zd\n", filesize, retval);
+      }
+      if (parser.err) {
+        fprintf(stderr, "\t%s (%d) \n", json_errno_messages[parser.err],
+                parser.err);
+        fprintf(stderr, "\t%s(%d)\n\n", parser.file, parser.line);
+      }
+      retval++;
+    }
+
+    // free parser in case of failure.
+    json_parce_free(&parser);
+#ifdef _WIN32
+  } while (FindNextFile(hFind, &fd));
+  FindClose(hFind);
+#else
+  } // while loop
+  closedir(d);
+#endif // WIN32
+
+  return retval;
+}
+
+#define TEST_UNICODE(INPUT, EXPECTED)                                          \
+  status = process_unicode_escape_string((INPUT), &output);                    \
+  assert(status == 0);                                                         \
+  printf("test_process_unicode_string - Expecting <%s> == <%s>\n", output,     \
+         (EXPECTED));                                                          \
+  assert(strcmp(output, (EXPECTED)) == 0);                                     \
+  free(output)
+
+#define TEST_UNICODE_ERROR(INPUT, EXPECTED)                                    \
+  status = process_unicode_escape_string((INPUT), &output);                    \
+  printf("test_process_unicode_string - Expecting status <%d> == <%d>\n",      \
+         status, (EXPECTED));                                                  \
+  assert(status == EXPECTED);
+
+int test_process_unicode_string() {
+  int status;
+  char *output = NULL;
+  printf("\n\ntest_process_unicode_string\n\n");
+
+  TEST_UNICODE("Hello world!", "Hello world!");
+  TEST_UNICODE("\\uFFEE", "\uFFEE");
+  TEST_UNICODE("\\u0000", "");
+  TEST_UNICODE("\\u0021", "!");
+  TEST_UNICODE("\\u00FF\\u0021", "\u00FF!");
+  TEST_UNICODE("\\uFFE8\\uFFE8\\uFFE8\\uFFE8\\uFFE8\\uFFE8\\uFFE8",
+               "\uFFE8\uFFE8\uFFE8\uFFE8\uFFE8\uFFE8\uFFE8");
+  TEST_UNICODE("\\uD83D\\uDE00", "\U0001F600");
+  TEST_UNICODE("\\uD888\\uDFAF", "\U000323AF");
+  TEST_UNICODE("\\uDBFF\\uDFFD", "\U0010FFFD");
+  TEST_UNICODE("\\uDB40\\uDDEF", "\U000E01EF");
+  TEST_UNICODE("\\uD884\\uDF4A", "\U0003134a");
+  TEST_UNICODE("\\uD87E\\uDDF4", "\U0002F9F4");
+  TEST_UNICODE("\\uD800\\uDC00", "\U00010000");
+
+  TEST_UNICODE("\\uD800\\uDC00\\uFFE8", "\U00010000\uFFE8");
+  TEST_UNICODE("!!\\uD800\\uDC00\\uFFE8!!", "!!\U00010000\uFFE8!!");
+  TEST_UNICODE("!!\\uD800\\uDC000\\uFFE8!!", "!!\U000100000\uFFE8!!");
+
+  TEST_UNICODE_ERROR("\\uD800!\\uDC00",
+                     -1); // character between high and low surrogates.
+  TEST_UNICODE_ERROR("\\uD800", -1);        // lonely high surrogate
+  TEST_UNICODE_ERROR("\\uDC00", -1);        // lonely low surrogate
+  TEST_UNICODE_ERROR("\\uD800\\uD800", -2); // two high surrogate
+  TEST_UNICODE_ERROR("\\uD800\\u0021", -2); // high surrogate + utf-8 character.
+  TEST_UNICODE_ERROR("\\u0021\\uD800", -1); // utf-8 character + high surrogate.
+  TEST_UNICODE_ERROR("\\u0021\\uDC00", -1); // utf-8 character + low surrogate.
 
   return 0;
 }
