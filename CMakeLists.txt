@@ -10,7 +10,7 @@ set(JSON_PARCE_ENABLE_STRICT_MODE OFF CACHE BOOL "Enables compiling with strict 
 set(JSON_PARCE_DEBUG_TEST OFF CACHE BOOL "Enables verbose logging during test.")
 
 
-project(json_parce LANGUAGES C VERSION 0.0.3)
+project(json_parce LANGUAGES C VERSION 0.0.4)
 set(C_STANDARD 11)
 
 include(FetchContent)
