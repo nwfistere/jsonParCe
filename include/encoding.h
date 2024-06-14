@@ -38,10 +38,6 @@ int check_utf_bom(uint8_t *p);
 // Expects an array of at least 4 bytes present.
 int check_json_byte_encoding(uint8_t *bytes);
 
-JSON_PARCE_API int c32strtomb(const char32_t *str, size_t str_sz, int encoding,
-                              char **out, size_t *out_sz);
-JSON_PARCE_API int c16strtomb(const char16_t *str, size_t str_sz, int encoding,
-                              char **out, size_t *out_sz);
 JSON_PARCE_API int get_file_info(const char *filepath, FILE **fp, int *encoding,
                                  size_t *file_size);
 
@@ -62,7 +58,16 @@ JSON_PARCE_API int process_unicode_escape_string(const char *input,
                                                  char **output);
 
 // https://stackoverflow.com/a/22128415
-size_t strlen16(register const char16_t *string);
-size_t strlen32(register const char32_t *string);
+JSON_PARCE_API size_t strlen16(register const char16_t *string);
+JSON_PARCE_API size_t strlen32(register const char32_t *string);
+
+JSON_PARCE_API int strcmp16(const char16_t *lhs, const char16_t *rhs);
+JSON_PARCE_API int strcmp32(const char32_t *lhs, const char32_t *rhs);
+
+JSON_PARCE_API int c32strtomb(const char32_t *str, size_t len, int encoding, char **out, size_t *out_len);
+JSON_PARCE_API int c16strtomb(const char16_t *str, size_t len, int encoding, char **out, size_t *out_len);
+
+JSON_PARCE_API int mbstrtoc32(const char* str, size_t len, char32_t** out, size_t *out_len);
+JSON_PARCE_API int mbstrtoc16(const char* str, size_t len, char16_t** out, size_t *out_len);
 
 #endif // JSON_PARCE_ENCODING_H

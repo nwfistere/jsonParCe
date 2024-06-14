@@ -55,8 +55,10 @@
              l_value_length)) > 0) {                                           \
       SET_ERRNO(callback_retval == 2 ? ERRNO_CALLBACK_REQUESTED_STOP           \
                                      : ERRNO_CALLBACK_FAILED);                 \
+      free(key); \
       goto error;                                                              \
     }                                                                          \
+    free(key); \
   }
 #define OBJECT_CALLBACK() P_OBJECT_CALLBACK((p - parser->object_value_mark) + 1)
 #define OBJECT_CALLBACK_NOADVANCE()                                            \
@@ -1323,6 +1325,7 @@ JSON_PARCE_API char *json_parce_string(const char *str, size_t len) {
       free(ret);
       ret = new_ret;
     } else {
+      free(ret);
       return NULL;
     }
   }
@@ -1390,6 +1393,9 @@ JSON_PARCE_API int json_parce_int(const char *str, size_t len,
     // convert.
     json_parce_real_t real;
     status = sscanf(lstr, "%lf", &real);
+    if (real > (json_parce_real_t)JSON_PARCE_INT_MAX || real < (json_parce_real_t)JSON_PARCE_INT_MIN) {
+      return ERRNO_OUT_OF_RANGE;
+    }
     *ret = (json_parce_int_t)real;
   } else {
     status = sscanf(lstr, "%lld", ret);

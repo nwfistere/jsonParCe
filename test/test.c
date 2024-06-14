@@ -126,6 +126,8 @@ int test_JSONTestSuite();
 int test_JSONTestSuite_transform();
 int test_json_parce_string();
 int test_process_unicode_string();
+int test_mbstrtoc16();
+int test_mbstrtoc32();
 
 int main() {
   json_parce parser;
@@ -242,6 +244,9 @@ int main() {
   test_json_parce_string();
 
   test_process_unicode_string();
+
+  test_mbstrtoc16();
+  test_mbstrtoc32();
 }
 
 static int test_parsing_on_array_value_cb(json_parce *parser,
@@ -839,6 +844,51 @@ int test_process_unicode_string() {
   TEST_UNICODE_ERROR("\\uD800\\u0021", -2); // high surrogate + utf-8 character.
   TEST_UNICODE_ERROR("\\u0021\\uD800", -1); // utf-8 character + high surrogate.
   TEST_UNICODE_ERROR("\\u0021\\uDC00", -1); // utf-8 character + low surrogate.
+
+  return 0;
+}
+
+
+#define TEST_MBSTRTOC16(INPUT, EXPECTED)                                          \
+  do {  \
+  char16_t* out = NULL; \
+  size_t out_sz = 0;  \
+  int status = mbstrtoc16((INPUT), strlen(INPUT) + 1, &out, &out_sz);                  \
+  assert(status == 0);                                                         \
+  printf("test_mbstrtoc16 - Expecting <%zd> == <%zd>\n", out_sz - 1, (strlen16(EXPECTED))); \
+  assert((out_sz - 1) == strlen16(EXPECTED)); \
+  assert(strcmp16(out, (EXPECTED)) == 0);                                     \
+  free(out);  \
+  } while(0)
+
+int test_mbstrtoc16() {
+  TEST_MBSTRTOC16("\xE1\x88\x96", u"\u1216");
+  TEST_MBSTRTOC16("", u"");
+  TEST_MBSTRTOC16("Hello World!", u"Hello World!");
+  TEST_MBSTRTOC16(u8"Hello, 世界! 🐀", u"Hello, 世界! 🐀");
+  TEST_MBSTRTOC16("\xF0\x9F\x90\x80", u"\U0001F400");
+
+  return 0;
+}
+
+#define TEST_MBSTRTOC32(INPUT, EXPECTED)                                          \
+  do {  \
+  char32_t* out = NULL; \
+  size_t out_sz = 0;  \
+  int status = mbstrtoc32((INPUT), strlen(INPUT) + 1, &out, &out_sz);                  \
+  assert(status == 0);                                                         \
+  printf("test_mbstrtoc32 - Expecting <%zd> == <%zd>\n", out_sz - 1, (strlen32(EXPECTED))); \
+  assert((out_sz - 1) == strlen32(EXPECTED)); \
+  assert(strcmp32(out, (EXPECTED)) == 0);                                     \
+  free(out);  \
+  } while(0)
+
+int test_mbstrtoc32() {
+  TEST_MBSTRTOC32("\xE1\x88\x96", U"\u1216");
+  TEST_MBSTRTOC32("", U"");
+  TEST_MBSTRTOC32("Hello World!", U"Hello World!");
+  TEST_MBSTRTOC32(u8"Hello, 世界! 🐀", U"Hello, 世界! 🐀");
+  TEST_MBSTRTOC32("\xF0\x9F\x90\x80", U"\U0001F400");
 
   return 0;
 }

@@ -135,7 +135,7 @@ static void do_unset_local_locale(char **original_locale) {
   }
 
 JSON_PARCE_API int c32strtomb(const char32_t *str, size_t len, int encoding,
-                              char **out, size_t *out_sz) {
+                              char **out, size_t *out_len) {
   set_local_locale();
   mbstate_t state = {0};
   *out = (char *)malloc(MB_CUR_MAX * (len + 1));
@@ -157,15 +157,15 @@ JSON_PARCE_API int c32strtomb(const char32_t *str, size_t len, int encoding,
     p += rc;
   }
 
-  *out_sz = p - *out;
-  (*out)[*out_sz] = U'\0';
+  *out_len = p - *out;
+  (*out)[*out_len] = U'\0';
 
   unset_local_locale();
   return 0;
 }
 
 JSON_PARCE_API int c16strtomb(const char16_t *str, size_t len, int encoding,
-                              char **out, size_t *out_sz) {
+                              char **out, size_t *out_len) {
   set_local_locale();
   mbstate_t state = {0};
   *out = (char *)malloc(MB_CUR_MAX * (len + 1));
@@ -185,8 +185,87 @@ JSON_PARCE_API int c16strtomb(const char16_t *str, size_t len, int encoding,
     p += rc;
   }
 
-  *out_sz = p - *out;
-  (*out)[(*out_sz)] = u'\0';
+  *out_len = p - *out;
+  (*out)[(*out_len)] = u'\0';
+
+  unset_local_locale();
+  return 0;
+}
+
+int mbstrtoc32(const char *str, size_t len, char32_t **out, size_t *out_len) {
+  set_local_locale();
+  mbstate_t state = {0};
+  const char* src = str;
+  const char* src_end = src + strlen(str) + 1;
+  *out = (char32_t *)malloc(sizeof(char32_t) * (len + 1));
+  char32_t* dest = *out;
+  size_t converted_length = 0;
+
+  while (src < src_end && converted_length < (sizeof(char32_t) * (len + 1))) {
+    size_t result = mbrtoc32(dest, src, src_end - src, &state);
+    if (result == (size_t)-1) {
+      return -1;
+    } else if (result == 0) {
+      src++;
+      converted_length++;
+    } else {
+      src += result;
+      dest++;
+      converted_length++;
+    }
+  }
+
+  *out_len = converted_length;
+
+  unset_local_locale();
+  return 0;
+}
+
+int mbstrtoc16(const char* str, size_t len, char16_t** out, size_t *out_len) {
+  set_local_locale();
+  mbstate_t state = {0};
+  const char* src = str;
+  const char* src_end = src + strlen(str) + 1;
+  *out = (char16_t *)malloc(sizeof(char16_t) * (len + 1));
+  char16_t* dest = *out;
+  size_t converted_length = 0;
+
+  while (src < src_end && converted_length < (sizeof(char16_t) * (len + 1))) {
+    size_t result = mbrtoc16(dest, src, src_end - src, &state);
+
+    if (result == (size_t)-1) {
+      return -1;
+    } else if (result == (size_t)-2) {
+      return -2;
+    } else if (result == 0) {
+      src++;
+      converted_length++;
+    } else if (result == -3) {
+      dest++;
+    } else {
+      if (*dest >= 0xD800 && *dest <= 0xDBFF) {
+        // First surrogate pair detected
+        src += 2;
+        dest++;
+        converted_length++;
+        // Process the second part of the surrogate pair
+        result = mbrtoc16(dest, src, src_end - src, &state);
+        if (result == (size_t)-1 || result == (size_t)-2) {
+          return -3;
+        } else if (result == (size_t) -3) {
+          dest++;
+          src += 2;
+          converted_length++;
+          continue;
+        }
+      }
+      src += result;
+      dest++;
+      converted_length++;
+    }
+  }
+
+  *out_len = converted_length;
 
   unset_local_locale();
   return 0;
@@ -375,4 +454,28 @@ size_t strlen32(register const char32_t *string) {
   while (string[++len])
     ;
   return len;
+}
+
+int strcmp16(const char16_t *lhs, const char16_t *rhs) {
+  const char16_t *p1 = lhs;
+  const char16_t *p2 = rhs;
+
+  while(*p1 && (*p1 == *p2)) {
+    p1++;
+    p2++;
+  }
+
+  return *p1 - *p2;
+}
+
+int strcmp32(const char32_t *lhs, const char32_t *rhs) {
+  const char32_t *p1 = lhs;
+  const char32_t *p2 = rhs;
+
+  while(*p1 && (*p1 == *p2)) {
+    p1++;
+    p2++;
+  }
+
+  return *p1 - *p2;
 }
