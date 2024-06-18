@@ -23,11 +23,6 @@ FetchContent_Declare(
   GIT_TAG        master
 )
 
-include(CMakePrintHelpers)
-cmake_print_variables(CMAKE_C_SIMULATE_ID)
-cmake_print_variables(CMAKE_C_COMPILER_ID)
-cmake_print_variables(CMAKE_C_COMPILER_FRONTEND_VARIANT)
-
 if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
   # MSVC Warning 4820 warns about padded bytes in struct.
   # MSVC Warning 5045 warns about spectre protection
@@ -108,7 +103,6 @@ if(JSON_PARCE_COMPILE_SHARED_LIBRARY)
   if(JSON_PARCE_ENABLE_STRICT_MODE)
     target_compile_definitions(${PROJECT_NAME}_shared PUBLIC JSON_PARCE_STRICT_MODE)
   endif()
-  # install(TARGETS ${PROJECT_NAME}_shared)
 endif() # JSON_PARCE_COMPILE_SHARED_LIBRARY
 
 if(JSON_PARCE_COMPILE_STATIC_LIBRARY)
@@ -125,7 +119,6 @@ if(JSON_PARCE_COMPILE_STATIC_LIBRARY)
     target_compile_definitions(${PROJECT_NAME}_static PUBLIC JSON_PARCE_STRICT_MODE)
   endif()
   set_target_properties(${PROJECT_NAME}_static PROPERTIES PUBLIC_HEADER "include/json_parce.h")
-  # install(TARGETS ${PROJECT_NAME}_static PUBLIC_HEADER DESTINATION include)
 endif() # JSON_PARCE_COMPILE_STATIC_LIBRARY
 
 if(JSON_PARCE_ENABLE_TEST)
