@@ -55,10 +55,10 @@
              l_value_length)) > 0) {                                           \
       SET_ERRNO(callback_retval == 2 ? ERRNO_CALLBACK_REQUESTED_STOP           \
                                      : ERRNO_CALLBACK_FAILED);                 \
-      free(key); \
+      free(key);                                                               \
       goto error;                                                              \
     }                                                                          \
-    free(key); \
+    free(key);                                                                 \
   }
 #define OBJECT_CALLBACK() P_OBJECT_CALLBACK((p - parser->object_value_mark) + 1)
 #define OBJECT_CALLBACK_NOADVANCE()                                            \
@@ -79,6 +79,19 @@
     }                                                                          \
   }                                                                            \
   parser->array_index++
+
+// Notify the consumer of start or end of parent container.
+#define NOTIFY(CALLBACK)                                                       \
+  assert(ch == OB || ch == CB || ch == OCB || ch == CCB);                      \
+  if (CALLBACK) {                                                              \
+    enum JSON_TYPE type = ((ch == OB || ch == CB) ? ARRAY : OBJECT);           \
+    int callback_retval = 0;                                                   \
+    if ((callback_retval = CALLBACK(parser, type)) > 0) {                      \
+      SET_ERRNO(callback_retval == 2 ? ERRNO_CALLBACK_REQUESTED_STOP           \
+                                     : ERRNO_CALLBACK_FAILED);                 \
+      goto error;                                                              \
+    }                                                                          \
+  }
 
 #define FIND_STRING_END(CHAR, NEW_STATE)                                       \
   if (CHAR == QM) {                                                            \
@@ -200,6 +213,7 @@
   }
 
 #define INCREASE_DEPTH(NEW_STATE, MAX_DEPTH_STATE)                             \
+  NOTIFY(callbacks->on_start);                                                 \
   if ((parser->max_depth > 0) &&                                               \
       (parser->current_depth->depth == parser->max_depth)) {                   \
     /* hit max depth, stop here. */                                            \
@@ -230,7 +244,8 @@
 // - Parent type (Array or Object)
 // - Current depth
 #define DECREASE_DEPTH()                                                       \
-  if (parser->current_depth->depth == 0) {                                     \
+  NOTIFY(callbacks->on_end);                                                   \
+  if (!deep || parser->current_depth->depth == 0) {                            \
     UPDATE_STATE(s_done);                                                      \
   } else {                                                                     \
     json_depth *old_depth = parser->current_depth;                             \
@@ -382,6 +397,7 @@ static size_t do_json_parce_execute(json_parce *parser,
         break;
       }
       if (ch == OB || ch == OCB) {
+        NOTIFY(callbacks->on_start);
         if (deep) {
           assert(parser->current_depth == NULL);
           parser->current_depth = (json_depth *)malloc(sizeof(json_depth));
@@ -410,11 +426,7 @@ static size_t do_json_parce_execute(json_parce *parser,
       if (IS_WHITESPACE(ch)) {
         break;
       } else if (ch == CB) {
-        if (deep) {
-          DECREASE_DEPTH();
-        } else {
-          UPDATE_STATE(s_done);
-        }
+        DECREASE_DEPTH();
         break;
       }
 #ifdef JSON_PARCE_STRICT_MODE
@@ -647,11 +659,7 @@ static size_t do_json_parce_execute(json_parce *parser,
       if (IS_WHITESPACE(ch)) {
         break;
       } else if (ch == CCB) {
-        if (deep) {
-          DECREASE_DEPTH();
-        } else {
-          UPDATE_STATE(s_done);
-        }
+        DECREASE_DEPTH();
         break;
       } else {
         UPDATE_STATE(s_parse_object);
@@ -905,11 +913,7 @@ static size_t do_json_parce_execute(json_parce *parser,
       if (ch == COMMA) {
         UPDATE_STATE(s_parse_array);
       } else if (ch == CB) {
-        if (deep) {
-          DECREASE_DEPTH();
-        } else {
-          UPDATE_STATE(s_done);
-        }
+        DECREASE_DEPTH();
       }
 #ifdef JSON_PARCE_STRICT_MODE
       else if (!IS_WHITESPACE(ch)) {
@@ -923,11 +927,7 @@ static size_t do_json_parce_execute(json_parce *parser,
       if (ch == COMMA) {
         UPDATE_STATE(s_parse_object);
       } else if (ch == CCB) {
-        if (deep) {
-          DECREASE_DEPTH();
-        } else {
-          UPDATE_STATE(s_done);
-        }
+        DECREASE_DEPTH();
       }
 #ifdef JSON_PARCE_STRICT_MODE
       else if (!IS_WHITESPACE(ch)) {
@@ -1150,12 +1150,6 @@ error:
   if (JSON_ERRNO(parser) == ERRNO_OK) {
     SET_ERRNO(ERRNO_UNKNOWN);
   }
-
-  // fprintf(stderr, "%s(%d) - %s\n", parser->file, parser->line,
-  //         json_errno_messages[parser->err]);
-  // if (parser->err == ERRNO_INVALID_CHARACTER) {
-  //   fprintf(stderr, "Invalid character: \"%c\"\n", *p);
-  // }
 
   RETURN(p - data);
 }
@@ -1393,7 +1387,8 @@ JSON_PARCE_API int json_parce_int(const char *str, size_t len,
     // convert.
     json_parce_real_t real;
     status = sscanf(lstr, "%lf", &real);
-    if (real > (json_parce_real_t)JSON_PARCE_INT_MAX || real < (json_parce_real_t)JSON_PARCE_INT_MIN) {
+    if (real > (json_parce_real_t)JSON_PARCE_INT_MAX ||
+        real < (json_parce_real_t)JSON_PARCE_INT_MIN) {
       return ERRNO_OUT_OF_RANGE;
     }
     *ret = (json_parce_int_t)real;

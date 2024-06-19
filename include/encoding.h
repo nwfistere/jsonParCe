@@ -64,10 +64,14 @@ JSON_PARCE_API size_t strlen32(register const char32_t *string);
 JSON_PARCE_API int strcmp16(const char16_t *lhs, const char16_t *rhs);
 JSON_PARCE_API int strcmp32(const char32_t *lhs, const char32_t *rhs);
 
-JSON_PARCE_API int c32strtomb(const char32_t *str, size_t len, int encoding, char **out, size_t *out_len);
-JSON_PARCE_API int c16strtomb(const char16_t *str, size_t len, int encoding, char **out, size_t *out_len);
+JSON_PARCE_API int c32strtomb(const char32_t *str, size_t len, int encoding,
+                              char **out, size_t *out_len);
+JSON_PARCE_API int c16strtomb(const char16_t *str, size_t len, int encoding,
+                              char **out, size_t *out_len);
 
-JSON_PARCE_API int mbstrtoc32(const char* str, size_t len, char32_t** out, size_t *out_len);
-JSON_PARCE_API int mbstrtoc16(const char* str, size_t len, char16_t** out, size_t *out_len);
+JSON_PARCE_API int mbstrtoc32(const char *str, size_t len, char32_t **out,
+                              size_t *out_len);
+JSON_PARCE_API int mbstrtoc16(const char *str, size_t len, char16_t **out,
+                              size_t *out_len);
 
 #endif // JSON_PARCE_ENCODING_H

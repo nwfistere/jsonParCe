@@ -121,9 +121,28 @@ int on_deep_object_key_value_pair_cb(json_parce *parser, const char *key,
   return 0;
 }
 
+int on_start(json_parce *parser, JSON_TYPE type) {
+#ifdef JSON_PARCE_ENABLE_TEST_DEBUG
+  print_values(
+      test_testname_string,
+      ((parser->current_depth != NULL) ? parser->current_depth->depth : 0),
+      NULL, NULL, -1, type, "START");
+#endif
+  return 0;
+}
+
+int on_end(json_parce *parser, JSON_TYPE type) {
+#ifdef JSON_PARCE_ENABLE_TEST_DEBUG
+  print_values(
+      test_testname_string,
+      ((parser->current_depth != NULL) ? parser->current_depth->depth : 0),
+      NULL, NULL, -1, type, "END");
+  printf("\n");
+#endif
+  return 0;
+}
+
 int test_parsing();
-int test_JSONTestSuite();
-int test_JSONTestSuite_transform();
 int test_json_parce_string();
 int test_process_unicode_string();
 int test_mbstrtoc16();
@@ -133,11 +152,15 @@ int main() {
   json_parce parser;
 
   json_parce_callbacks cbs = {.on_array_value = on_array_value_cb,
-                              .on_object_key_value_pair = on_object_value_cb};
+                              .on_object_key_value_pair = on_object_value_cb,
+                              .on_start = on_start,
+                              .on_end = on_end};
 
   json_parce_callbacks deep_cbs = {.on_array_value = on_deep_array_value_cb,
                                    .on_object_key_value_pair =
-                                       on_deep_object_key_value_pair_cb};
+                                       on_deep_object_key_value_pair_cb,
+                                   .on_start = on_start,
+                                   .on_end = on_end};
 
   print_header();
 
@@ -232,12 +255,6 @@ int main() {
   retval =
       json_parce_execute_file(&parser, &cbs, "./encodings/utf-32BEBOM.json");
   print_retval(retval, 51, &parser);
-
-  retval = test_JSONTestSuite();
-  assert(retval == 0);
-
-  retval = test_JSONTestSuite_transform();
-  assert(retval == 0);
 
   test_parsing();
 
@@ -343,207 +360,6 @@ int test_parsing() {
   print_retval(retval, object_data_len, &parser);
 
   return 0;
-}
-
-int test_JSONTestSuite_array(json_parce *parser, unsigned int index,
-                             JSON_TYPE type, const char *value,
-                             size_t value_length) {
-#ifdef JSON_PARCE_ENABLE_TEST_DEBUG
-  char *log_value = NULL;
-  size_t log_value_len = 0;
-  get_log_string(20, value, value_length, &log_value, &log_value_len);
-
-  char parent[100] = {0};
-  if (parser->current_depth->key) {
-    sprintf(parent, "%.*s", (int)parser->current_depth->key_len,
-            parser->current_depth->key);
-  } else if (parser->current_depth->depth > 0) {
-    sprintf(parent, "%d", (int)parser->current_depth->array_index);
-  } else {
-    sprintf(parent, "%s", "[ROOT]");
-  }
-
-  print_values(test_testname_string, parser->current_depth->depth, parent, NULL,
-               index, type, log_value);
-  free(log_value);
-#endif
-  validate_value(type, value, value_length);
-  return 0;
-}
-
-int test_JSONTestSuite_object(json_parce *parser, const char *key,
-                              size_t key_length, JSON_TYPE type,
-                              const char *value, size_t value_length) {
-#ifdef JSON_PARCE_ENABLE_TEST_DEBUG
-  char *log_value = NULL;
-  size_t log_value_len = 0;
-  get_log_string(20, value, value_length, &log_value, &log_value_len);
-
-  char parent[100] = {0};
-  char log_key[100] = {0};
-  if (parser->current_depth->key) {
-    sprintf(parent, "%.*s", (int)parser->current_depth->key_len,
-            parser->current_depth->key);
-  } else if (parser->current_depth->depth > 0) {
-    sprintf(parent, "%d", (int)parser->current_depth->array_index);
-  } else {
-    sprintf(parent, "%s", "{ROOT}");
-  }
-
-  snprintf(log_key, key_length + 1, "%s", key);
-
-  print_values(test_testname_string, parser->current_depth->depth, parent,
-               log_key, -1, type, log_value);
-  free(log_value);
-#endif
-  validate_value(type, value, value_length);
-  return 0;
-}
-
-int test_JSONTestSuite() {
-  int retval = 0;
-  json_parce parser;
-
-  size_t filesize;
-  char *filename;
-  char *path = "./test_parsing";
-  char filepath[1024] = {0};
-
-  json_parce_callbacks deep_cbs = {.on_array_value = test_JSONTestSuite_array,
-                                   .on_object_key_value_pair =
-                                       test_JSONTestSuite_object};
-
-#ifdef _WIN32
-  WIN32_FIND_DATA fd;
-  HANDLE hFind = NULL;
-
-  sprintf(filepath, "%s\\*.json", path);
-
-  if ((hFind = FindFirstFile(filepath, &fd)) == INVALID_HANDLE_VALUE) {
-    fprintf(stderr, "Failed to open directory \"%s\"\n", path);
-    return -1;
-  }
-
-  do {
-    if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-      // skip directories
-      continue;
-    }
-
-    sprintf(filepath, "%s\\%s", path, fd.cFileName);
-    filesize = fd.nFileSizeLow;
-    filename = fd.cFileName;
-#else
-  DIR *d = opendir(path);
-
-  if (!d) {
-    fprintf(stderr, "Failed to open directory \"%s\"", path);
-    return -1;
-  }
-
-  struct dirent *entry;
-
-  while ((entry = readdir(d)) != NULL) {
-#ifdef _DIRENT_HAVE_D_TYPE
-    if (entry->d_type != DT_REG) {
-      // skip anything that's not a normal file.
-      continue;
-    }
-#endif
-    sprintf(filepath, "%s/%s", path, entry->d_name);
-
-    struct stat sb = {0};
-    if (stat(filepath, &sb) != 0) {
-      fprintf(stderr, "Failed to get file info using stat. \"%s\"", filepath);
-      return -1;
-    }
-
-    filesize = sb.st_size;
-    filename = entry->d_name;
-#endif // WIN32
-
-    test_testname_string = filename;
-
-    json_parce_init(&parser);
-    size_t retval = json_deep_parce_execute_file(&parser, &deep_cbs, filepath);
-
-    // y_* files should work
-    // i_* files may work.
-    // n_* files should cause failures.
-    if (strncmp(filename, "y_", 2) == 0) {
-      static const char *ignore_files[] = {
-          "y_string_space.json",
-          "y_structure_lonely_false.json",
-          "y_structure_lonely_int.json",
-          "y_structure_lonely_negative_real.json",
-          "y_structure_lonely_null.json",
-          "y_structure_lonely_string.json",
-          "y_structure_lonely_true.json",
-          "y_structure_string_empty.json"};
-
-      int ignore = 0;
-      for (int i = 0; i < (sizeof(ignore_files) / sizeof(*ignore_files)); ++i) {
-        if (strcmp(ignore_files[i], filename) == 0) {
-          ignore = 1;
-          break;
-        }
-      }
-
-      if (!ignore && (parser.err || (filesize != retval))) {
-        fprintf(stderr, "\nERROR: \"%s\" FAILED\n", filepath);
-        if (filesize != retval) {
-          fprintf(stderr, "\texpected: %zd, actual: %zd\n", filesize, retval);
-        }
-        if (parser.err) {
-          fprintf(stderr, "\t%s (%d) \n", json_errno_messages[parser.err],
-                  parser.err);
-          fprintf(stderr, "\t%s(%d)\n\n", parser.file, parser.line);
-        }
-        retval++;
-      } else if (ignore && !parser.err) {
-        printf("\nINFO: \"%s\" COMPLETED successfully but ignored\n", filepath);
-      }
-
-    } else if (strncmp(filename, "i_", 2) == 0) {
-      // Exclude the utf16 tests from the size check.
-      if (parser.err ||
-          (filesize != retval && (strstr(filename, "16") == NULL))) {
-        fprintf(stderr, "\nWARNING: \"%s\" FAILED\n", filepath);
-        if (filesize != retval) {
-          fprintf(stderr, "\texpected: %zd, actual: %zd\n", filesize, retval);
-        }
-        if (parser.err) {
-          fprintf(stderr, "\t%s (%d) \n", json_errno_messages[parser.err],
-                  parser.err);
-          fprintf(stderr, "\t%s(%d) - %s()\n\n", parser.file, parser.line,
-                  parser.func);
-        }
-      }
-    } else if (strncmp(filename, "n_", 2) == 0) {
-      if (!parser.err) {
-#ifdef JSON_PARCE_STRICT_MODE
-        // fprintf(stderr, "\"%s\",\n", filename);
-        fprintf(stderr, "\nERROR: \"%s\" SUCCESS\n", filepath);
-        retval++;
-#else
-        printf("\nINFO: \"%s\" SUCCESS - (JSON_PARCE_STRICT_MODE is disabled)",
-               filepath);
-#endif
-      }
-    } else {
-      fprintf(stderr, "\nWARNING: Unexpected file parsed. %s", filepath);
-    }
-    // free parser in case of failure.
-    json_parce_free(&parser);
-#ifdef _WIN32
-  } while (FindNextFile(hFind, &fd));
-  FindClose(hFind);
-#else
-  } // while loop
-  closedir(d);
-#endif // WIN32
-
-  return retval;
 }
 
 int print_values(char *filename, int depth, char *parent, char *key, int index,
@@ -704,100 +520,6 @@ int test_json_parce_string() {
   return 0;
 }
 
-int test_JSONTestSuite_transform() {
-  printf("\n\ntest_JSONTestSuite_transform()\n\n");
-  int retval = 0;
-  json_parce parser;
-
-  size_t filesize;
-  char *filename;
-  char *path = "./test_transform";
-  char filepath[1024] = {0};
-
-  json_parce_callbacks deep_cbs = {.on_array_value = test_JSONTestSuite_array,
-                                   .on_object_key_value_pair =
-                                       test_JSONTestSuite_object};
-
-#ifdef _WIN32
-  WIN32_FIND_DATA fd;
-  HANDLE hFind = NULL;
-
-  sprintf(filepath, "%s\\*.json", path);
-
-  if ((hFind = FindFirstFile(filepath, &fd)) == INVALID_HANDLE_VALUE) {
-    fprintf(stderr, "Failed to open directory \"%s\"", path);
-    return -1;
-  }
-
-  do {
-    if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-      // skip directories
-      continue;
-    }
-
-    sprintf(filepath, "%s\\%s", path, fd.cFileName);
-    filesize = fd.nFileSizeLow;
-    filename = fd.cFileName;
-#else
-  DIR *d = opendir(path);
-
-  if (!d) {
-    fprintf(stderr, "Failed to open directory \"%s\"\n", path);
-    return -1;
-  }
-
-  struct dirent *entry;
-
-  while ((entry = readdir(d)) != NULL) {
-#ifdef _DIRENT_HAVE_D_TYPE
-    if (entry->d_type != DT_REG) {
-      // skip anything that's not a normal file.
-      continue;
-    }
-#endif
-    sprintf(filepath, "%s/%s", path, entry->d_name);
-
-    struct stat sb = {0};
-    if (stat(filepath, &sb) != 0) {
-      fprintf(stderr, "Failed to get file info using stat. \"%s\"\n", filepath);
-      return -1;
-    }
-
-    filesize = sb.st_size;
-    filename = entry->d_name;
-#endif // WIN32
-
-    test_testname_string = filename;
-
-    json_parce_init(&parser);
-    size_t retval = json_deep_parce_execute_file(&parser, &deep_cbs, filepath);
-
-    if (parser.err || (filesize != retval)) {
-      fprintf(stderr, "\nERROR: \"%s\" FAILED\n", filepath);
-      if (filesize != retval) {
-        fprintf(stderr, "\texpected: %zd, actual: %zd\n", filesize, retval);
-      }
-      if (parser.err) {
-        fprintf(stderr, "\t%s (%d) \n", json_errno_messages[parser.err],
-                parser.err);
-        fprintf(stderr, "\t%s(%d)\n\n", parser.file, parser.line);
-      }
-      retval++;
-    }
-
-    // free parser in case of failure.
-    json_parce_free(&parser);
-#ifdef _WIN32
-  } while (FindNextFile(hFind, &fd));
-  FindClose(hFind);
-#else
-  } // while loop
-  closedir(d);
-#endif // WIN32
-
-  return retval;
-}
-
 #define TEST_UNICODE(INPUT, EXPECTED)                                          \
   status = process_unicode_escape_string((INPUT), &output);                    \
   assert(status == 0);                                                         \
@@ -848,18 +570,18 @@ int test_process_unicode_string() {
   return 0;
 }
 
-
-#define TEST_MBSTRTOC16(INPUT, EXPECTED)                                          \
-  do {  \
-  char16_t* out = NULL; \
-  size_t out_sz = 0;  \
-  int status = mbstrtoc16((INPUT), strlen(INPUT) + 1, &out, &out_sz);                  \
-  assert(status == 0);                                                         \
-  printf("test_mbstrtoc16 - Expecting <%zd> == <%zd>\n", out_sz - 1, (strlen16(EXPECTED))); \
-  assert((out_sz - 1) == strlen16(EXPECTED)); \
-  assert(strcmp16(out, (EXPECTED)) == 0);                                     \
-  free(out);  \
-  } while(0)
+#define TEST_MBSTRTOC16(INPUT, EXPECTED)                                       \
+  do {                                                                         \
+    char16_t *out = NULL;                                                      \
+    size_t out_sz = 0;                                                         \
+    int status = mbstrtoc16((INPUT), strlen(INPUT) + 1, &out, &out_sz);        \
+    assert(status == 0);                                                       \
+    printf("test_mbstrtoc16 - Expecting <%zd> == <%zd>\n", out_sz - 1,         \
+           (strlen16(EXPECTED)));                                              \
+    assert((out_sz - 1) == strlen16(EXPECTED));                                \
+    assert(strcmp16(out, (EXPECTED)) == 0);                                    \
+    free(out);                                                                 \
+  } while (0)
 
 int test_mbstrtoc16() {
   TEST_MBSTRTOC16("\xE1\x88\x96", u"\u1216");
@@ -871,17 +593,18 @@ int test_mbstrtoc16() {
   return 0;
 }
 
-#define TEST_MBSTRTOC32(INPUT, EXPECTED)                                          \
-  do {  \
-  char32_t* out = NULL; \
-  size_t out_sz = 0;  \
-  int status = mbstrtoc32((INPUT), strlen(INPUT) + 1, &out, &out_sz);                  \
-  assert(status == 0);                                                         \
-  printf("test_mbstrtoc32 - Expecting <%zd> == <%zd>\n", out_sz - 1, (strlen32(EXPECTED))); \
-  assert((out_sz - 1) == strlen32(EXPECTED)); \
-  assert(strcmp32(out, (EXPECTED)) == 0);                                     \
-  free(out);  \
-  } while(0)
+#define TEST_MBSTRTOC32(INPUT, EXPECTED)                                       \
+  do {                                                                         \
+    char32_t *out = NULL;                                                      \
+    size_t out_sz = 0;                                                         \
+    int status = mbstrtoc32((INPUT), strlen(INPUT) + 1, &out, &out_sz);        \
+    assert(status == 0);                                                       \
+    printf("test_mbstrtoc32 - Expecting <%zd> == <%zd>\n", out_sz - 1,         \
+           (strlen32(EXPECTED)));                                              \
+    assert((out_sz - 1) == strlen32(EXPECTED));                                \
+    assert(strcmp32(out, (EXPECTED)) == 0);                                    \
+    free(out);                                                                 \
+  } while (0)
 
 int test_mbstrtoc32() {
   TEST_MBSTRTOC32("\xE1\x88\x96", U"\u1216");

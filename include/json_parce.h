@@ -124,15 +124,20 @@ typedef struct json_parce {
 // This will stop parsing, but json_parce_execute can be recalled and
 // continued.
 
-typedef int (*json_object_cb)(json_parce *, const char *key, size_t key_len,
-                              JSON_TYPE type, const char *value,
+typedef int (*json_notice_cb)(json_parce *, JSON_TYPE);
+
+typedef int (*json_object_cb)(json_parce *parser, const char *key,
+                              size_t key_len, JSON_TYPE type, const char *value,
                               size_t value_length);
-typedef int (*json_array_cb)(json_parce *, unsigned int index, JSON_TYPE type,
-                             const char *value, size_t value_length);
+typedef int (*json_array_cb)(json_parce *parser, unsigned int index,
+                             JSON_TYPE type, const char *value,
+                             size_t value_length);
 
 typedef struct json_parce_callbacks {
   json_object_cb on_object_key_value_pair;
   json_array_cb on_array_value;
+  json_notice_cb on_start;
+  json_notice_cb on_end;
 } json_parce_callbacks;
 
 JSON_PARCE_API void json_parce_init(json_parce *parser);

@@ -195,10 +195,10 @@ JSON_PARCE_API int c16strtomb(const char16_t *str, size_t len, int encoding,
 int mbstrtoc32(const char *str, size_t len, char32_t **out, size_t *out_len) {
   set_local_locale();
   mbstate_t state = {0};
-  const char* src = str;
-  const char* src_end = src + strlen(str) + 1;
+  const char *src = str;
+  const char *src_end = src + strlen(str) + 1;
   *out = (char32_t *)malloc(sizeof(char32_t) * (len + 1));
-  char32_t* dest = *out;
+  char32_t *dest = *out;
   size_t converted_length = 0;
 
   while (src < src_end && converted_length < (sizeof(char32_t) * (len + 1))) {
@@ -221,13 +221,13 @@ int mbstrtoc32(const char *str, size_t len, char32_t **out, size_t *out_len) {
   return 0;
 }
 
-int mbstrtoc16(const char* str, size_t len, char16_t** out, size_t *out_len) {
+int mbstrtoc16(const char *str, size_t len, char16_t **out, size_t *out_len) {
   set_local_locale();
   mbstate_t state = {0};
-  const char* src = str;
-  const char* src_end = src + strlen(str) + 1;
+  const char *src = str;
+  const char *src_end = src + strlen(str) + 1;
   *out = (char16_t *)malloc(sizeof(char16_t) * (len + 1));
-  char16_t* dest = *out;
+  char16_t *dest = *out;
   size_t converted_length = 0;
 
   while (src < src_end && converted_length < (sizeof(char16_t) * (len + 1))) {
@@ -252,7 +252,7 @@ int mbstrtoc16(const char* str, size_t len, char16_t** out, size_t *out_len) {
         result = mbrtoc16(dest, src, src_end - src, &state);
         if (result == (size_t)-1 || result == (size_t)-2) {
           return -3;
-        } else if (result == (size_t) -3) {
+        } else if (result == (size_t)-3) {
           dest++;
           src += 2;
           converted_length++;
@@ -391,42 +391,42 @@ size_t decode_string(char *str, size_t len) {
     if (str[i] == '\\') {
       char next = str[i + 1];
       switch (next) {
-        case '/':
-        case '\'':
-        case '\\':
-        case '"': {
-          *p = next;
-          i++;
-          break;
-        }
-        case 'b': {
-          *p = '\b';
-          i++;
-          break;
-        }
-        case 'r': {
-          *p = '\r';
-          i++;
-          break;
-        }
-        case 'n': {
-          *p = '\n';
-          i++;
-          break;
-        }
-        case 'f': {
-          *p = '\f';
-          i++;
-          break;
-        }
-        case 't': {
-          *p = '\t';
-          i++;
-          break;
-        }
-        default: {
-          *p = str[i];
-        }
+      case '/':
+      case '\'':
+      case '\\':
+      case '"': {
+        *p = next;
+        i++;
+        break;
+      }
+      case 'b': {
+        *p = '\b';
+        i++;
+        break;
+      }
+      case 'r': {
+        *p = '\r';
+        i++;
+        break;
+      }
+      case 'n': {
+        *p = '\n';
+        i++;
+        break;
+      }
+      case 'f': {
+        *p = '\f';
+        i++;
+        break;
+      }
+      case 't': {
+        *p = '\t';
+        i++;
+        break;
+      }
+      default: {
+        *p = str[i];
+      }
       }
     } else {
       *p = str[i];
@@ -460,7 +460,7 @@ int strcmp16(const char16_t *lhs, const char16_t *rhs) {
   const char16_t *p1 = lhs;
   const char16_t *p2 = rhs;
 
-  while(*p1 && (*p1 == *p2)) {
+  while (*p1 && (*p1 == *p2)) {
     p1++;
     p2++;
   }
@@ -472,7 +472,7 @@ int strcmp32(const char32_t *lhs, const char32_t *rhs) {
   const char32_t *p1 = lhs;
   const char32_t *p2 = rhs;
 
-  while(*p1 && (*p1 == *p2)) {
+  while (*p1 && (*p1 == *p2)) {
     p1++;
     p2++;
   }
