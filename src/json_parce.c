@@ -1382,21 +1382,35 @@ JSON_PARCE_API int json_parce_int(const char *str, size_t len,
     }
   }
 
+  json_parce_real_t real;
+  status = sscanf(lstr, "%lf", &real);
+  json_parce_real_t sub_result = real - (json_parce_real_t)JSON_PARCE_INT_MAX;
+  json_parce_real_t add_result = real + (json_parce_real_t)JSON_PARCE_INT_MIN;
+  if (sub_result >= 0 || add_result >= 0) {
+    return ERRNO_OUT_OF_RANGE;
+  }
+
   if (has_exp) {
     // sscanf can only handle e or E when parsing floats. Parse as float then
     // convert.
-    json_parce_real_t real;
-    status = sscanf(lstr, "%lf", &real);
-    if (real > (json_parce_real_t)JSON_PARCE_INT_MAX ||
-        real < (json_parce_real_t)JSON_PARCE_INT_MIN) {
-      return ERRNO_OUT_OF_RANGE;
-    }
     *ret = (json_parce_int_t)real;
   } else {
     status = sscanf(lstr, "%lld", ret);
   }
   if (status != 1) {
     return ERRNO_OUT_OF_RANGE;
+  }
+
+  // The real JSON_PARCE_INT_MAX check doesn't work for JSON_PARCE_INT_MAX+1,
+  // need to be more clever.
+  if (real > 0) {
+    if (max(0, *ret) == 0) {
+      return ERRNO_OUT_OF_RANGE;
+    }
+  } else if (real < 0) {
+    if (min(0, *ret) == 0) {
+      return ERRNO_OUT_OF_RANGE;
+    }
   }
 
   return 0;

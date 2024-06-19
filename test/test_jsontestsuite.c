@@ -211,23 +211,31 @@ int test_transform_on_start(json_parce *parser, JSON_TYPE type) { return 0; }
 
 int test_transform_array(json_parce *parser, unsigned int index, JSON_TYPE type,
                          const char *value, size_t value_length) {
+  printf("[%s] - \"%*.s\" -> ", test_testname_string, (int)value_length, value);
   switch (type) {
   case NUMBER: {
     json_parce_int_t rint;
     json_parce_real_t real;
+    int printed = 0;
     int ret = json_parce_int(value, value_length, &rint);
     if (ret != 0) {
       ret = json_parce_real(value, value_length, &real);
+    } else {
+      printed = 1;
+      printf("(json_parce_int_t) %lld\n", rint);
     }
     if (ret != 0) {
       fprintf(stderr, "\n [%s] - Failed to parse number: <%.*s>\n",
               test_testname_string, (int)value_length, value);
+    } else if (!printed) {
+      printf("(json_parce_real_t) %lf\n", real);
     }
     break;
   }
   case STRING: {
     char *str = json_parce_string(value, value_length);
     if (str != NULL) {
+      printf("%s\n", str);
       free(str);
     } else {
       fprintf(stderr, "\n [%s] - Failed to parse string: <%.*s>\n",
@@ -237,6 +245,7 @@ int test_transform_array(json_parce *parser, unsigned int index, JSON_TYPE type,
   }
   case BOOL_TYPE: {
     int ret = json_parce_bool(value);
+    printf("%s\n", (ret ? "true" : "false"));
     assert((ret == 0) || (ret == 1));
     break;
   }
@@ -255,23 +264,31 @@ int test_transform_array(json_parce *parser, unsigned int index, JSON_TYPE type,
 int test_transform_object(json_parce *parser, const char *key, size_t key_len,
                           JSON_TYPE type, const char *value,
                           size_t value_length) {
+  printf("[%s] - \"%*.s\" -> ", test_testname_string, (int)value_length, value);
   switch (type) {
   case NUMBER: {
     json_parce_int_t rint;
     json_parce_real_t real;
+    int printed = 0;
     int ret = json_parce_int(value, value_length, &rint);
     if (ret != 0) {
       ret = json_parce_real(value, value_length, &real);
+    } else {
+      printed = 1;
+      printf("(json_parce_int_t) %lld\n", rint);
     }
     if (ret != 0) {
       fprintf(stderr, "\n [%s] - Failed to parse number: <%.*s>\n",
               test_testname_string, (int)value_length, value);
+    } else if (!printed) {
+      printf("(json_parce_real_t) %lf\n", real);
     }
     break;
   }
   case STRING: {
     char *str = json_parce_string(value, value_length);
     if (str != NULL) {
+      printf("%s\n", str);
       free(str);
     } else {
       fprintf(stderr, "\n [%s] - Failed to parse string: <%.*s>\n",
@@ -281,6 +298,7 @@ int test_transform_object(json_parce *parser, const char *key, size_t key_len,
   }
   case BOOL_TYPE: {
     int ret = json_parce_bool(value);
+    printf("%s\n", (ret ? "true" : "false"));
     assert((ret == 0) || (ret == 1));
     break;
   }
@@ -293,7 +311,6 @@ int test_transform_object(json_parce *parser, const char *key, size_t key_len,
   case NULL_TYPE:
     break;
   }
-  return 0;
   return 0;
 }
 
