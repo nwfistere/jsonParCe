@@ -5,6 +5,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef MAX
+  #undef MAX;
+#endif
+
+#ifdef MIN
+  #undef MIN;
+#endif
+
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+
 #define SET_ERR(e)                                                             \
   parser->err = (e);                                                           \
   parser->line = __LINE__;                                                     \
@@ -1404,11 +1415,11 @@ JSON_PARCE_API int json_parce_int(const char *str, size_t len,
   // The real JSON_PARCE_INT_MAX check doesn't work for JSON_PARCE_INT_MAX+1,
   // need to be more clever.
   if (real > 0) {
-    if (max(0, *ret) == 0) {
+    if (MAX(0, *ret) == 0) {
       return ERRNO_OUT_OF_RANGE;
     }
   } else if (real < 0) {
-    if (min(0, *ret) == 0) {
+    if (MIN(0, *ret) == 0) {
       return ERRNO_OUT_OF_RANGE;
     }
   }
