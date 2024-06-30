@@ -28,11 +28,11 @@ int main(int argc, char **argv) {
   }
 
 #ifdef _WIN32
-  if(!setlocale(LC_ALL, ".utf8")) {
+  if (!setlocale(LC_ALL, ".utf8")) {
     fprintf(stderr, "setlocale failed!\n");
   }
 #else
-  if(!setlocale(LC_ALL, "C.utf8")) {
+  if (!setlocale(LC_ALL, "C.utf8")) {
     fprintf(stderr, "setlocale failed!\n");
   }
 #endif
@@ -50,9 +50,8 @@ int test_on_end(json_parce *parser, JSON_TYPE type) { return 0; }
 
 int test_on_start(json_parce *parser, JSON_TYPE type) { return 0; }
 
-int test_JSONTestSuite_array(json_parce *parser, size_t index,
-                             JSON_TYPE type, const char *value,
-                             size_t value_length) {
+int test_JSONTestSuite_array(json_parce *parser, size_t index, JSON_TYPE type,
+                             const char *value, size_t value_length) {
   validate_value(type, value, value_length);
   return 0;
 }

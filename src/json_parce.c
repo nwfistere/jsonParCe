@@ -6,11 +6,11 @@
 #include <string.h>
 
 #ifdef MAX
-  #undef MAX;
+#undef MAX;
 #endif
 
 #ifdef MIN
-  #undef MIN;
+#undef MIN;
 #endif
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
@@ -232,7 +232,7 @@
     REEXECUTE();                                                               \
   } else {                                                                     \
     json_depth *new_depth = (json_depth *)malloc(sizeof(json_depth));          \
-    json_depth_init_child(new_depth, parser, ch); \
+    json_depth_init_child(new_depth, parser, ch);                              \
     UPDATE_STATE(NEW_STATE);                                                   \
   }                                                                            \
   break;
@@ -357,7 +357,8 @@ static void json_depth_init(json_depth *depth) {
   memset(depth, 0, sizeof(*depth));
 }
 
-static void json_depth_init_child(json_depth *depth, json_parce* parser, char ch) {
+static void json_depth_init_child(json_depth *depth, json_parce *parser,
+                                  char ch) {
   json_depth_init(depth);
   depth->depth = parser->current_depth->depth + 1;
   depth->parent = parser->current_depth;

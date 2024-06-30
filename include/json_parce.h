@@ -94,7 +94,7 @@ typedef struct json_parce {
 
   // deep parser members
   json_depth *current_depth;
-  
+
   // Max depth to parse into, will return whole child json object
   // at this point. (zero means no max depth.)
   unsigned int max_depth;
@@ -132,9 +132,8 @@ typedef int (*json_notice_cb)(json_parce *, JSON_TYPE);
 typedef int (*json_object_cb)(json_parce *parser, const char *key,
                               size_t key_len, JSON_TYPE type, const char *value,
                               size_t value_length);
-typedef int (*json_array_cb)(json_parce *parser, size_t index,
-                             JSON_TYPE type, const char *value,
-                             size_t value_length);
+typedef int (*json_array_cb)(json_parce *parser, size_t index, JSON_TYPE type,
+                             const char *value, size_t value_length);
 
 typedef struct json_parce_callbacks {
   json_object_cb on_object_key_value_pair;
