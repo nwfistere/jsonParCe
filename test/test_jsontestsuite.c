@@ -27,6 +27,16 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
+#ifdef _WIN32
+  if(!setlocale(LC_ALL, ".utf8")) {
+    fprintf(stderr, "setlocale failed!\n");
+  }
+#else
+  if(!setlocale(LC_ALL, "C.utf8")) {
+    fprintf(stderr, "setlocale failed!\n");
+  }
+#endif
+
   int status = test_parsing(argv[1]);
 
   if (argc == 3) {
@@ -40,7 +50,7 @@ int test_on_end(json_parce *parser, JSON_TYPE type) { return 0; }
 
 int test_on_start(json_parce *parser, JSON_TYPE type) { return 0; }
 
-int test_JSONTestSuite_array(json_parce *parser, unsigned int index,
+int test_JSONTestSuite_array(json_parce *parser, size_t index,
                              JSON_TYPE type, const char *value,
                              size_t value_length) {
   validate_value(type, value, value_length);
@@ -209,7 +219,7 @@ int test_transform_on_end(json_parce *parser, JSON_TYPE type) { return 0; }
 
 int test_transform_on_start(json_parce *parser, JSON_TYPE type) { return 0; }
 
-int test_transform_array(json_parce *parser, unsigned int index, JSON_TYPE type,
+int test_transform_array(json_parce *parser, size_t index, JSON_TYPE type,
                          const char *value, size_t value_length) {
   printf("[%s] - \"%*.s\" -> ", test_testname_string, (int)value_length, value);
   switch (type) {

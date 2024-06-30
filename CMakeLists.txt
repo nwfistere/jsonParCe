@@ -172,8 +172,12 @@ install(FILES
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/JsonParCe
 )
 
-set(CPACK_GENERATOR "TGZ")
+# set(CPACK_GENERATOR "TGZ")
 set(CPACK_PACKAGE_NAME JsonParCe)
 set(CPACK_PACKAGE_VENDOR nwfistere)
+set(CPACK_PACKAGE_CONTACT "Nick Fistere")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A callback based json parser.")
+
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 
 include(CPack) # For packaging

@@ -13,6 +13,27 @@
 #include <sys/stat.h>
 #endif
 
+#define QUOTE(X) #X
+#define STR(X) QUOTE(X)
+
+#define TEST_ASSERT(EXPR) \
+if (!(EXPR)) { \
+  fflush(stderr); \
+  fflush(stdout); \
+  fprintf(stderr, "%s(%d): ASSERTION FAILED: \"%s\"\n", __FILE__, __LINE__, #EXPR); \
+  fflush(stderr); \
+  exit(1); \
+}
+
+#define TEST_ASSERT_EQUALS(EXPECTED, ACTUAL) \
+if ((EXPECTED) != (ACTUAL)) { \
+  fflush(stderr); \
+  fflush(stdout); \
+  fprintf(stderr, "%s(%d): ASSERTION EQUALITY FAILED: \"%s == %s\" \"" STR(EXPECTED) " != " STR(ACTUAL) "\"\n", __FILE__, __LINE__, #EXPECTED, #ACTUAL); \
+  fflush(stderr); \
+  exit(1); \
+}
+
 static char *test_testname_string = NULL;
 
 static const char array_data[] =
@@ -52,7 +73,7 @@ int on_object_value_cb(json_parce *parser, const char *key, size_t key_length,
   return 0;
 }
 
-int on_array_value_cb(json_parce *parser, unsigned int index, JSON_TYPE type,
+int on_array_value_cb(json_parce *parser, size_t index, JSON_TYPE type,
                       const char *value, size_t value_length) {
 #ifdef JSON_PARCE_ENABLE_TEST_DEBUG
   char *log_value = NULL;
@@ -66,7 +87,7 @@ int on_array_value_cb(json_parce *parser, unsigned int index, JSON_TYPE type,
   return 0;
 }
 
-int on_deep_array_value_cb(json_parce *parser, unsigned int index,
+int on_deep_array_value_cb(json_parce *parser, size_t index,
                            JSON_TYPE type, const char *value,
                            size_t value_length) {
 #ifdef JSON_PARCE_ENABLE_TEST_DEBUG
@@ -148,7 +169,23 @@ int test_process_unicode_string();
 int test_mbstrtoc16();
 int test_mbstrtoc32();
 
-int main() {
+int main(int argc, char** argv) {
+
+  if (argc != 2) {
+    fprintf(stderr, "Usage:\n %s <test_file_dir>\n",  argv[0]);
+    exit(1);
+  }
+
+#ifdef _WIN32
+  if(!setlocale(LC_ALL, ".utf8")) {
+    fprintf(stderr, "setlocale failed!\n");
+  }
+#else
+  if(!setlocale(LC_ALL, "C.utf8")) {
+    fprintf(stderr, "setlocale failed!\n");
+  }
+#endif
+
   json_parce parser;
 
   json_parce_callbacks cbs = {.on_array_value = on_array_value_cb,
@@ -192,121 +229,130 @@ int main() {
   print_retval(retval, object_data_len, &parser);
   json_parce_free(&parser);
 
+  char test_file[2048] = { 0 };
+
   // 1
   json_parce_init(&parser);
   test_testname_string = "utf-8.json";
-  retval = json_parce_execute_file(&parser, &cbs, "./encodings/utf-8.json");
+  snprintf(test_file, sizeof(test_file), "%s/%s", argv[1], test_testname_string);
+  retval = json_parce_execute_file(&parser, &cbs, test_file);
   print_retval(retval, 48, &parser);
 
   // 2
   json_parce_init(&parser);
   test_testname_string = "utf-8BOM.json";
-  retval = json_parce_execute_file(&parser, &cbs, "./encodings/utf-8BOM.json");
+  snprintf(test_file, sizeof(test_file), "%s/%s", argv[1], test_testname_string);
+  retval = json_parce_execute_file(&parser, &cbs, test_file);
   print_retval(retval, 51, &parser);
 
   // 3
   json_parce_init(&parser);
   test_testname_string = "utf-16LE.json";
-  retval = json_parce_execute_file(&parser, &cbs, "./encodings/utf-16LE.json");
+  snprintf(test_file, sizeof(test_file), "%s/%s", argv[1], test_testname_string);
+  retval = json_parce_execute_file(&parser, &cbs, test_file);
   print_retval(retval, 48, &parser);
 
   // 4
   json_parce_init(&parser);
   test_testname_string = "utf-16BE.json";
-  retval = json_parce_execute_file(&parser, &cbs, "./encodings/utf-16BE.json");
+  snprintf(test_file, sizeof(test_file), "%s/%s", argv[1], test_testname_string);
+  retval = json_parce_execute_file(&parser, &cbs, test_file);
   print_retval(retval, 48, &parser);
 
   // 5
   json_parce_init(&parser);
   test_testname_string = "utf-16LEBOM.json";
+  snprintf(test_file, sizeof(test_file), "%s/%s", argv[1], test_testname_string);
   retval =
-      json_parce_execute_file(&parser, &cbs, "./encodings/utf-16LEBOM.json");
+      json_parce_execute_file(&parser, &cbs, test_file);
   print_retval(retval, 51, &parser);
 
   // 6
   json_parce_init(&parser);
   test_testname_string = "utf-16BEBOM.json";
+  snprintf(test_file, sizeof(test_file), "%s/%s", argv[1], test_testname_string);
   retval =
-      json_parce_execute_file(&parser, &cbs, "./encodings/utf-16BEBOM.json");
+      json_parce_execute_file(&parser, &cbs, test_file);
   print_retval(retval, 51, &parser);
 
   // 7
   json_parce_init(&parser);
   test_testname_string = "utf-32LE.json";
-  retval = json_parce_execute_file(&parser, &cbs, "./encodings/utf-32LE.json");
+  snprintf(test_file, sizeof(test_file), "%s/%s", argv[1], test_testname_string);
+  retval = json_parce_execute_file(&parser, &cbs, test_file);
   print_retval(retval, 48, &parser);
 
   // 8
   json_parce_init(&parser);
   test_testname_string = "utf-32BE.json";
-  retval = json_parce_execute_file(&parser, &cbs, "./encodings/utf-32BE.json");
+  snprintf(test_file, sizeof(test_file), "%s/%s", argv[1], test_testname_string);
+  retval = json_parce_execute_file(&parser, &cbs, test_file);
   print_retval(retval, 48, &parser);
 
   // 9
   json_parce_init(&parser);
   test_testname_string = "utf-32LEBOM.json";
+  snprintf(test_file, sizeof(test_file), "%s/%s", argv[1], test_testname_string);
   retval =
-      json_parce_execute_file(&parser, &cbs, "./encodings/utf-32LEBOM.json");
+      json_parce_execute_file(&parser, &cbs, test_file);
   print_retval(retval, 51, &parser);
 
   // 10
   json_parce_init(&parser);
   test_testname_string = "utf-32BEBOM.json";
+  snprintf(test_file, sizeof(test_file), "%s/%s", argv[1], test_testname_string);
   retval =
-      json_parce_execute_file(&parser, &cbs, "./encodings/utf-32BEBOM.json");
+      json_parce_execute_file(&parser, &cbs, test_file);
   print_retval(retval, 51, &parser);
 
   test_parsing();
-
   test_json_parce_string();
-
   test_process_unicode_string();
-
   test_mbstrtoc16();
   test_mbstrtoc32();
 }
 
 static int test_parsing_on_array_value_cb(json_parce *parser,
-                                          unsigned int index, JSON_TYPE type,
+                                          size_t index, JSON_TYPE type,
                                           const char *value,
                                           size_t value_length) {
   switch (index) {
   case 0: {
-    assert(type == NULL_TYPE);
-    assert(strncmp(value, "null", value_length) == 0);
+    TEST_ASSERT_EQUALS(type, NULL_TYPE);
+    TEST_ASSERT(strncmp(value, "null", value_length) == 0);
     break;
   }
   case 1: {
-    assert(type == BOOL_TYPE);
-    assert(strncmp(value, "true", value_length) == 0);
+    TEST_ASSERT_EQUALS(type, BOOL_TYPE);
+    TEST_ASSERT(strncmp(value, "true", value_length) == 0);
     break;
   }
   case 2: {
-    assert(type == BOOL_TYPE);
-    assert(strncmp(value, "false", value_length) == 0);
+    TEST_ASSERT_EQUALS(type, BOOL_TYPE);
+    TEST_ASSERT(strncmp(value, "false", value_length) == 0);
     break;
   }
   case 3: {
-    assert(type == STRING);
-    assert(strncmp(value, "str\\\\ing", value_length) == 0);
+    TEST_ASSERT_EQUALS(type, STRING);
+    TEST_ASSERT(strncmp(value, "str\\\\ing", value_length) == 0);
     break;
   }
   case 4: {
-    assert(type == OBJECT);
+    TEST_ASSERT_EQUALS(type, OBJECT);
     break;
   }
   case 5: {
-    assert(type == ARRAY);
+    TEST_ASSERT_EQUALS(type, ARRAY);
     break;
   }
   case 6: {
-    assert(type == NUMBER);
-    assert(strncmp(value, "-1.23e15", value_length) == 0);
+    TEST_ASSERT_EQUALS(type, NUMBER);
+    TEST_ASSERT(strncmp(value, "-1.23e15", value_length) == 0);
     break;
   }
   default: {
-    fprintf(stderr, "Not a known index \"%d\"", index);
-    assert(0);
+    fprintf(stderr, "Not a known index \"%d\"", (int)index);
+    TEST_ASSERT(0);
   }
   }
 
@@ -318,26 +364,26 @@ static int test_parsing_on_object_value_cb(json_parce *parser, const char *key,
                                            const char *value,
                                            size_t value_length) {
   if (strncmp(key, "null", key_length) == 0) {
-    assert(type == NULL_TYPE);
+    TEST_ASSERT_EQUALS(type, NULL_TYPE);
   } else if (strncmp(key, "true", key_length) == 0) {
-    assert(type == BOOL_TYPE);
+    TEST_ASSERT_EQUALS(type, BOOL_TYPE);
   } else if (strncmp(key, "false", key_length) == 0) {
-    assert(type == BOOL_TYPE);
+    TEST_ASSERT_EQUALS(type, BOOL_TYPE);
   } else if (strncmp(key, "integer", key_length) == 0) {
-    assert(type == NUMBER);
+    TEST_ASSERT_EQUALS(type, NUMBER);
   } else if (strncmp(key, "number", key_length) == 0) {
-    assert(type == NUMBER);
+    TEST_ASSERT_EQUALS(type, NUMBER);
   } else if (strncmp(key, "string", key_length) == 0) {
-    assert(type == STRING);
+    TEST_ASSERT_EQUALS(type, STRING);
   } else if (strncmp(key, "object", key_length) == 0) {
-    assert(type == OBJECT);
+    TEST_ASSERT_EQUALS(type, OBJECT);
   } else if (strncmp(key, "array", key_length) == 0) {
-    assert(type == ARRAY);
+    TEST_ASSERT_EQUALS(type, ARRAY);
   } else if (strncmp(key, "\\\\", key_length) == 0) {
-    assert(value_length == 0);
+    TEST_ASSERT_EQUALS(value_length, 0);
   } else {
     fprintf(stderr, "Not a known key \"%.*s\"", (int)key_length, key);
-    assert(0);
+    TEST_ASSERT(0);
   }
 
   return 0;
@@ -354,8 +400,8 @@ int test_parsing() {
   size_t retval =
       json_parce_execute(&parser, &cbs, object_data, object_data_len);
 
-  assert(retval == object_data_len);
-  assert(parser.err == 0);
+  TEST_ASSERT_EQUALS(retval, object_data_len);
+  TEST_ASSERT_EQUALS(parser.err, 0);
 
   print_retval(retval, object_data_len, &parser);
 
@@ -455,9 +501,9 @@ void print_retval(size_t retval, size_t expected, json_parce *parser) {
 #endif
   }
 
-  assert(retval == expected);
-  assert(parser->err == 0);
-  assert(parser->state == JSON_PARCE_DONE_STATE);
+  TEST_ASSERT_EQUALS(retval, expected);
+  TEST_ASSERT_EQUALS(parser->err, 0);
+  TEST_ASSERT_EQUALS(parser->state, JSON_PARCE_DONE_STATE);
 }
 
 void validate_value(JSON_TYPE type, const char *value, size_t value_length) {
@@ -487,7 +533,7 @@ void validate_value(JSON_TYPE type, const char *value, size_t value_length) {
   }
   case BOOL_TYPE: {
     int ret = json_parce_bool(value);
-    assert((ret == 0) || (ret == 1));
+    TEST_ASSERT((ret == 0) || (ret == 1));
     break;
   }
   default: {
@@ -500,39 +546,54 @@ int test_json_parce_string() {
   char *retval = json_parce_string(item, strlen(item));
   char *expected = "\"Hello, world\"!";
   printf("test_json_parce_string - Expecting <%s> == <%s>\n", retval, expected);
-  assert(strcmp(retval, expected) == 0);
+  TEST_ASSERT(strcmp(retval, expected) == 0);
   free(retval);
 
   item = "\\\"\\\"\\\"";
   retval = json_parce_string(item, strlen(item));
   expected = "\"\"\"";
   printf("test_json_parce_string - Expecting <%s> == <%s>\n", retval, expected);
-  assert(strcmp(retval, expected) == 0);
+  TEST_ASSERT(strcmp(retval, expected) == 0);
   free(retval);
 
   item = "\\\"\\'\\/\\b\\r\\n\\t\\f";
   retval = json_parce_string(item, strlen(item));
   expected = "\"'/\b\r\n\t\f";
   printf("test_json_parce_string - Expecting <%s> == <%s>\n", retval, expected);
-  assert(strcmp(retval, expected) == 0);
+  TEST_ASSERT(strcmp(retval, expected) == 0);
   free(retval);
 
   return 0;
 }
 
+#define print_str_hex(OUT, STR) \
+  for (size_t i = 0; i < strlen(STR); i++)  { \
+    fprintf((OUT), "%04X", 0xFFFF & STR[i]); \
+    if (i < (strlen(STR) - 1)) { \
+      fprintf((OUT), " "); \
+    } \
+  }
+
 #define TEST_UNICODE(INPUT, EXPECTED)                                          \
   status = process_unicode_escape_string((INPUT), &output);                    \
-  assert(status == 0);                                                         \
+  TEST_ASSERT_EQUALS(status, 0);                                                         \
   printf("test_process_unicode_string - Expecting <%s> == <%s>\n", output,     \
          (EXPECTED));                                                          \
-  assert(strcmp(output, (EXPECTED)) == 0);                                     \
+  TEST_ASSERT(strcmp(output, (EXPECTED)) == 0);                                     \
+  if (strcmp(output, (EXPECTED)) != 0) { \
+    fprintf(stderr, "test_process_unicode_string - FAILED <"); \
+    print_str_hex(stderr, output) \
+    fprintf(stderr, "> != <"); \
+    print_str_hex(stderr, (EXPECTED)) \
+    fprintf(stderr, "> line: %d\n", __LINE__); \
+  } \
   free(output)
 
 #define TEST_UNICODE_ERROR(INPUT, EXPECTED)                                    \
   status = process_unicode_escape_string((INPUT), &output);                    \
   printf("test_process_unicode_string - Expecting status <%d> == <%d>\n",      \
          status, (EXPECTED));                                                  \
-  assert(status == EXPECTED);
+  TEST_ASSERT_EQUALS(status, EXPECTED);
 
 int test_process_unicode_string() {
   int status;
@@ -540,23 +601,23 @@ int test_process_unicode_string() {
   printf("\n\ntest_process_unicode_string\n\n");
 
   TEST_UNICODE("Hello world!", "Hello world!");
-  TEST_UNICODE("\\uFFEE", "\uFFEE");
+  TEST_UNICODE("\\uFFEE", "\xEF\xBF\xAE");
   TEST_UNICODE("\\u0000", "");
   TEST_UNICODE("\\u0021", "!");
-  TEST_UNICODE("\\u00FF\\u0021", "\u00FF!");
+  TEST_UNICODE("\\u00FF\\u0021", "\xC3\xBF!");
   TEST_UNICODE("\\uFFE8\\uFFE8\\uFFE8\\uFFE8\\uFFE8\\uFFE8\\uFFE8",
-               "\uFFE8\uFFE8\uFFE8\uFFE8\uFFE8\uFFE8\uFFE8");
-  TEST_UNICODE("\\uD83D\\uDE00", "\U0001F600");
-  TEST_UNICODE("\\uD888\\uDFAF", "\U000323AF");
-  TEST_UNICODE("\\uDBFF\\uDFFD", "\U0010FFFD");
-  TEST_UNICODE("\\uDB40\\uDDEF", "\U000E01EF");
-  TEST_UNICODE("\\uD884\\uDF4A", "\U0003134a");
-  TEST_UNICODE("\\uD87E\\uDDF4", "\U0002F9F4");
-  TEST_UNICODE("\\uD800\\uDC00", "\U00010000");
+               "\xEF\xBF\xA8\xEF\xBF\xA8\xEF\xBF\xA8\xEF\xBF\xA8\xEF\xBF\xA8\xEF\xBF\xA8\xEF\xBF\xA8");
+  TEST_UNICODE("\\uD83D\\uDE00", "\xF0\x9F\x98\x80");
+  TEST_UNICODE("\\uD888\\uDFAF", "\xF0\xB2\x8E\xAF");
+  TEST_UNICODE("\\uDBFF\\uDFFD", "\xF4\x8F\xBF\xBD");
+  TEST_UNICODE("\\uDB40\\uDDEF", "\xF3\xA0\x87\xAF");
+  TEST_UNICODE("\\uD884\\uDF4A", "\xF0\xB1\x8D\x8A");
+  TEST_UNICODE("\\uD87E\\uDDF4", "\xF0\xAF\xA7\xB4");
+  TEST_UNICODE("\\uD800\\uDC00", "\xF0\x90\x80\x80");
 
-  TEST_UNICODE("\\uD800\\uDC00\\uFFE8", "\U00010000\uFFE8");
-  TEST_UNICODE("!!\\uD800\\uDC00\\uFFE8!!", "!!\U00010000\uFFE8!!");
-  TEST_UNICODE("!!\\uD800\\uDC000\\uFFE8!!", "!!\U000100000\uFFE8!!");
+  TEST_UNICODE("\\uD800\\uDC00\\uFFE8", "\xF0\x90\x80\x80\xEF\xBF\xA8");
+  TEST_UNICODE("!!\\uD800\\uDC00\\uFFE8!!", "!!\xF0\x90\x80\x80\xEF\xBF\xA8!!");
+  TEST_UNICODE("!!\\uD800\\uDC000\\uFFE8!!", "!!\xF0\x90\x80\x80""0\xEF\xBF\xA8!!");
 
   TEST_UNICODE_ERROR("\\uD800!\\uDC00",
                      -1); // character between high and low surrogates.
@@ -575,11 +636,11 @@ int test_process_unicode_string() {
     char16_t *out = NULL;                                                      \
     size_t out_sz = 0;                                                         \
     int status = mbstrtoc16((INPUT), strlen(INPUT) + 1, &out, &out_sz);        \
-    assert(status == 0);                                                       \
+    TEST_ASSERT_EQUALS(status, 0);                                                       \
     printf("test_mbstrtoc16 - Expecting <%zd> == <%zd>\n", out_sz - 1,         \
            (strlen16(EXPECTED)));                                              \
-    assert((out_sz - 1) == strlen16(EXPECTED));                                \
-    assert(strcmp16(out, (EXPECTED)) == 0);                                    \
+    TEST_ASSERT_EQUALS((out_sz - 1), strlen16(EXPECTED));                                \
+    TEST_ASSERT(strcmp16(out, (EXPECTED)) == 0);                                    \
     free(out);                                                                 \
   } while (0)
 
@@ -598,11 +659,11 @@ int test_mbstrtoc16() {
     char32_t *out = NULL;                                                      \
     size_t out_sz = 0;                                                         \
     int status = mbstrtoc32((INPUT), strlen(INPUT) + 1, &out, &out_sz);        \
-    assert(status == 0);                                                       \
+    TEST_ASSERT_EQUALS(status, 0);                                                       \
     printf("test_mbstrtoc32 - Expecting <%zd> == <%zd>\n", out_sz - 1,         \
            (strlen32(EXPECTED)));                                              \
-    assert((out_sz - 1) == strlen32(EXPECTED));                                \
-    assert(strcmp32(out, (EXPECTED)) == 0);                                    \
+    TEST_ASSERT_EQUALS((out_sz - 1), strlen32(EXPECTED));                                \
+    TEST_ASSERT(strcmp32(out, (EXPECTED)) == 0);                                    \
     free(out);                                                                 \
   } while (0)
 
