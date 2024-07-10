@@ -9,3 +9,6 @@ compilers/
 dockerfiles/
 .dockerignore
 output/
+reports/
+reports_html/
+output*
