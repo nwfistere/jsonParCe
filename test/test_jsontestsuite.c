@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
   }
 
 #ifdef _WIN32
-  if (!setlocale(LC_ALL, ".utf8")) {
+  if (!setlocale(LC_ALL, ".UTF-8")) {
     fprintf(stderr, "setlocale failed!\n");
   }
 #else
@@ -157,10 +157,11 @@ int test_parsing(char *path) {
         }
       }
 
+      printf("file: %s, size: %zd, error: %d\n", filepath, filesize, parser.err);
       if (!ignore && (parser.err || (filesize != retval))) {
         fprintf(stderr, "\nERROR: \"%s\" FAILED\n", filepath);
         if (filesize != retval) {
-          fprintf(stderr, "\texpected: %zd, actual: %zd\n", filesize, retval);
+          fprintf(stderr, "\t%d: expected: %zd, actual: %zd\n", __LINE__, filesize, retval);
         }
         if (parser.err) {
           fprintf(stderr, "\t%s (%d) \n", json_errno_messages[parser.err],
@@ -178,7 +179,7 @@ int test_parsing(char *path) {
           (filesize != retval && (strstr(filename, "16") == NULL))) {
         fprintf(stderr, "\nWARNING: \"%s\" FAILED\n", filepath);
         if (filesize != retval) {
-          fprintf(stderr, "\texpected: %zd, actual: %zd\n", filesize, retval);
+          fprintf(stderr, "\t%d: expected: %zd, actual: %zd\n", __LINE__, filesize, retval);
         }
         if (parser.err) {
           fprintf(stderr, "\t%s (%d) \n", json_errno_messages[parser.err],
@@ -394,7 +395,7 @@ int test_transform(char *path) {
     if (parser.err || (filesize != retval)) {
       fprintf(stderr, "\nERROR: \"%s\" FAILED\n", filepath);
       if (filesize != retval) {
-        fprintf(stderr, "\texpected: %zd, actual: %zd\n", filesize, retval);
+        fprintf(stderr, "\t%d: expected: %zd, actual: %zd\n", __LINE__, filesize, retval);
       }
       if (parser.err) {
         fprintf(stderr, "\t%s (%d) \n", json_errno_messages[parser.err],

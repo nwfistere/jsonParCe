@@ -84,6 +84,7 @@ int main(void) {
   size_t retval =
       json_deep_parce_execute(&parser, &cbs, array_data, array_data_len);
   assert(retval == array_data_len);
+  (void)retval; // Make gcc happy.
 
   printf("\n");
 
@@ -92,6 +93,7 @@ int main(void) {
   json_parce_init(&parser);
   retval = json_deep_parce_execute(&parser, &cbs, object_data, object_data_len);
   assert(retval == object_data_len);
+  (void)retval; // Make gcc happy.
 
   return 0;
 }

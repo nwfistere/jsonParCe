@@ -1,0 +1,1 @@
+docker run --rm -v ./reports:/src/reports -v ./reports_html:/src/reports_html -it nwfistere/codechecker

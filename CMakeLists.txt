@@ -24,6 +24,7 @@ FetchContent_Declare(
 )
 
 if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
+  # NOTE /utf-8 flag. This library runs with the utf8 encoding by default.
   # MSVC Warning 4820 warns about padded bytes in struct.
   # MSVC Warning 5045 warns about spectre protection
   # MSVC Warning 4996 warns about using strdup
@@ -32,10 +33,11 @@ if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
   # MSVC Warning 4711 warns about auto-inline of non-inlined functions during optimization.
   # MSVC Warning 4710 warns about not inlining a specific function
   # C4476, 4474 testing
-  set(JSON_PARCE_COMPILE_OPTIONS /nologo /Wall /WX /wd4820 /wd5045 /wd4996 /wd4127 /wd4333 /wd4711 /wd4710)
+  set(JSON_PARCE_COMPILE_OPTIONS /nologo /Wall /WX /utf-8 /wd4820 /wd5045 /wd4996 /wd4127 /wd4333 /wd4711 /wd4710)
   list(APPEND JSON_PARCE_COMPILE_DEFINITIONS /D_CRT_SECURE_NO_WARNINGS)
   if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    list(APPEND JSON_PARCE_COMPILE_OPTIONS /Ox)
+    # list(APPEND JSON_PARCE_COMPILE_OPTIONS /Ox)
+    # string(REPLACE "/RTC1" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
   else()
     list(APPEND JSON_PARCE_COMPILE_OPTIONS /Od /Zi /RTCcsu /MP)
   endif() # CMAKE_BUILD_TYPE STREQUAL "Release"
