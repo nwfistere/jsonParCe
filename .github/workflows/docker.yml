@@ -1,0 +1,59 @@
+name: Dockerfile executions
+
+on:
+  push:
+
+jobs:
+  docker-execution:
+    runs-on: ubuntu-latest
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5001:5000
+    env:
+      TEST_TAG: localhost:5001/actions/jsonparce:ci
+
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Docker BuildX
+        id: setup-buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+          driver-opts: network=host
+      
+      - name: Build the Container
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.TEST_TAG }}
+          file: ./docker/ubuntu/Dockerfile
+
+      - name: Run GCC Release Strict
+        id: run_release_strict
+        run: |
+          docker run --rm ${{ env.TEST_TAG }} /bin/bash -c \
+            ./docker/ubuntu/entrypoint.sh \
+              -s ON \
+              -c /usr/bin/gcc \
+              -x /usr/bin/g++ \
+              -t 1 \
+              -C Release
+
+      - name: Run GCC Release Non-Strict
+        id: run_release_non_strict
+        run: |
+          docker run --rm ${{ env.TEST_TAG }} /bin/bash -c \
+            ./docker/ubuntu/entrypoint.sh \
+              -s OFF \
+              -c /usr/bin/gcc \
+              -x /usr/bin/g++ \
+              -t 1 \
+              -C Release
+

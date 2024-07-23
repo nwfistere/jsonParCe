@@ -35,10 +35,7 @@ add_executable(${PROJECT_NAME}_test_jsontestsuite test_jsontestsuite.c)
 target_link_libraries(${PROJECT_NAME}_test_jsontestsuite PRIVATE json_parce_shared)
 target_compile_definitions(${PROJECT_NAME}_test_jsontestsuite PRIVATE LIBRARY_IMPORTS)
 
-# set(TEST_WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/test$<$<BOOL:$<CONFIG>>:/$<CONFIG>>)
-include(CMakePrintHelpers)
 get_directory(FILEPATH ${CMAKE_BINARY_DIR}/test RESULT TEST_WORKING_DIRECTORY)
-cmake_print_variables(TEST_WORKING_DIRECTORY)
 
 add_test(NAME ${PROJECT_NAME}_test_static COMMAND ${PROJECT_NAME}_test_static ${CMAKE_CURRENT_SOURCE_DIR}/encodings WORKING_DIRECTORY ${TEST_WORKING_DIRECTORY})
 add_test(NAME ${PROJECT_NAME}_test_shared COMMAND ${PROJECT_NAME}_test_shared ${CMAKE_CURRENT_SOURCE_DIR}/encodings WORKING_DIRECTORY ${TEST_WORKING_DIRECTORY})

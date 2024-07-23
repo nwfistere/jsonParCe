@@ -96,7 +96,7 @@ int test_parsing(char *path) {
     }
 
     sprintf(filepath, "%s\\%s", path, fd.cFileName);
-    filesize = fd.nFileSizeLow;
+    filesize = ( (uint64_t)(fd.nFileSizeHigh) << 32 ) | fd.nFileSizeLow;
     filename = fd.cFileName;
 #else
   DIR *d = opendir(path);

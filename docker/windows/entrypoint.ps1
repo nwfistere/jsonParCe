@@ -39,24 +39,27 @@ $params = $params.Split(" ")
 
 # Mark all directories as safe to be owned by others.
 # This is required to pull down dependencies.
-& git config --global --add safe.directory "*"
+((git config --global --list | Select-String -Pattern "safe\.directory\s?=\s?\*") -or (git config --global --add safe.directory "*"))
+
+& git config --global core.pager "cat"
+& git config --global core.autocrlf "input"
+& git config --list
 
 # Execute cmake generation
 & $command $params
 
 # Execute build.
 
-$params = "--build $BUILD_DIR --config $config"
+$params = "--build $BUILD_DIR -j $NUM_JOBS --config $config"
 $params = $params.Split(" ")
 
 & $command $params
 
 $command = "ctest.exe"
-$params = "-V --output-on-failure -C $config --test-dir $BUILD_DIR"
+$params = "-V --output-on-failure -j $NUM_JOBS -C $config --test-dir $BUILD_DIR"
 $params = $params.Split(" ")
 
-& $command $params 1> "$BUILD_DIR/test.stderr.log"
+& $command $params
 
-# & Get-WinSystemLocale
 
-# & gci env:
+exit 0;
