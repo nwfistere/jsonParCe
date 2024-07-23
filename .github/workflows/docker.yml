@@ -39,21 +39,24 @@ jobs:
         id: run_release_strict
         run: |
           docker run --rm ${{ env.TEST_TAG }} /bin/bash -c \
+            "cd /src/ && \
             ./docker/ubuntu/entrypoint.sh \
               -s ON \
               -c /usr/bin/gcc \
               -x /usr/bin/g++ \
               -t 1 \
-              -C Release
+              -C Release"
 
       - name: Run GCC Release Non-Strict
         id: run_release_non_strict
         run: |
           docker run --rm ${{ env.TEST_TAG }} /bin/bash -c \
             ./docker/ubuntu/entrypoint.sh \
+            "cd /src/ && \
+            ./docker/ubuntu/entrypoint.sh \
               -s OFF \
               -c /usr/bin/gcc \
               -x /usr/bin/g++ \
               -t 1 \
-              -C Release
+              -C Release"
 
