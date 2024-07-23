@@ -61,5 +61,4 @@ $params = $params.Split(" ")
 
 & $command $params
 
-
 exit 0;
