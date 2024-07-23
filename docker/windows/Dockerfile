@@ -1,7 +1,7 @@
 # escape=`
 
 # Use the latest Windows Server Core 2022 image.
-FROM mcr.microsoft.com/windows/servercore:ltsc2022 as builder
+FROM mcr.microsoft.com/windows/servercore:ltsc2022 AS builder
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
