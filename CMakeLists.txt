@@ -162,15 +162,29 @@ install(
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/JsonParCe
 )
 
+set(INCLUDE_INSTALL_DIR include)
+set(LIBRARY_INSTALL_DIR lib)
+set(BINARY_INSTALL_DIR bin)
+
 # Create config file and install it.
 configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Config.cmake.in
   "${CMAKE_CURRENT_BINARY_DIR}/JsonParCeConfig.cmake"
   INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/JsonParCe
+  PATH_VARS
+  INCLUDE_INSTALL_DIR
+  LIBRARY_INSTALL_DIR
+  BINARY_INSTALL_DIR
+)
+
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/JsonParCeConfigVersion.cmake"
+  VERSION "${VERSION}"
+  COMPATIBILITY ExactVersion
 )
 
 install(FILES
   "${CMAKE_CURRENT_BINARY_DIR}/JsonParCeConfig.cmake"
-  # "${CMAKE_CURRENT_BINARY_DIR}/JsonParCeConfigVersion.cmake" TODO: Create a version file.
+  "${CMAKE_CURRENT_BINARY_DIR}/JsonParCeConfigVersion.cmake"
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/JsonParCe
 )
 
