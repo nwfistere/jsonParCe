@@ -1,12 +1,14 @@
 param(
   [String] $s="ON",
   [String] $t="ON",
-  [String] $c="Release"
+  [String] $c="Release",
+  [String] $r="OFF"
 )
 
 $strict_mode = $s;
 $run_tests = $s;
 $config = $c;
+$use_windows_newlines = $r
 
 $NUM_JOBS=(Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors;
 $BUILD_DIR="./build/windows_${strict_mode}_${config}";
@@ -54,6 +56,19 @@ $params = "--build $BUILD_DIR -j $NUM_JOBS --config $config"
 $params = $params.Split(" ")
 
 & $command $params
+
+if ($use_windows_newlines -eq "ON") {
+  $json_test_file_dir = Join-Path $BUILD_DIR _deps jsontestsuite-src test_parsing
+
+  Write-Output "Checking: $json_test_file_dir"
+
+  # Foreach file in json_test_file_dir replace all newlines with crlf.
+  Get-ChildItem $json_test_file_dir -Filter *.json |
+  ForEach-Object {
+    Write-Output "Found $_.FullName"
+    (Get-Content $_.FullName).Replace("`n", "`r`n") | Set-Content $_.FullName
+  }
+}
 
 $command = "ctest.exe"
 $params = "-V --output-on-failure -j $NUM_JOBS -C $config --test-dir $BUILD_DIR"
