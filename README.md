@@ -115,3 +115,23 @@ The following defines can be included in the initial cmake command. The option s
  - `-DJSON_PARCE_ENABLE_TEST=ON`: Enables compiling of the tests
  - `-DJSON_PARCE_ENABLE_TEST_COVERAGE=OFF`: Enables addition of the `--coverage` flag for gcov.
  - `-DJSON_PARCE_ENABLE_EXAMPLE_COMPILE=OFF`: Enables compiling of the examples directory.
+
+## Benchmark v0.0.5
+Takes the input file and parses it until it has parsed the specified size in bench.c (currently 8 gb).
+```bash
+# Ubuntu wsl
+wget https://api.github.com/users/nwfistere/repos
+mv repos repos.json
+./build/ubuntu_ON_Release/test/json_parce_bench ./test/repos.json
+req_len=41562
+Benchmark result:
+8191.98 mb | 396.41 mb/s | 10001.21 req/sec | 20.67 s
+```
+
+```bat
+# Windows
+.\test\Release\json_parce_bench.exe .\test\repos.json
+req_len=41562
+Benchmark result:
+8191.98 mb | 362.81 mb/s | 9153.51 req/sec | 22.58 s
+```
