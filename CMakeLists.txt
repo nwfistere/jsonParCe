@@ -10,7 +10,7 @@ set(JSON_PARCE_ENABLE_STRICT_MODE OFF CACHE BOOL "Enables compiling with strict 
 set(JSON_PARCE_DEBUG_TEST OFF CACHE BOOL "Enables verbose logging during test.")
 
 
-project(json_parce LANGUAGES C VERSION 0.0.4)
+project(json_parce LANGUAGES C VERSION 0.0.5)
 set(C_STANDARD 11)
 
 include(FetchContent)
@@ -187,6 +187,8 @@ install(FILES
   "${CMAKE_CURRENT_BINARY_DIR}/JsonParCeConfigVersion.cmake"
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/JsonParCe
 )
+
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE" DESTINATION .)
 
 # set(CPACK_GENERATOR "TGZ")
 set(CPACK_PACKAGE_NAME JsonParCe)
