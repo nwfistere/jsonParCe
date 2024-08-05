@@ -7,17 +7,21 @@ CC=/usr/bin/gcc
 CXX=/usr/bin/g++
 run_tests=1
 cmake_config="Release"
+install_dir=""
+package=0
 
-while getopts "h?:s:c:x:t:f:" opt; do
+while getopts "h?:s:c:x:t:f:i:p:" opt; do
   case "$opt" in
     h|\?)
-      echo "Usage: entrypoint.sh [-s strict_mode] [-c CC] [-x CXX] [-t run_tests] [-f cmake_config]"
+      echo "Usage: entrypoint.sh [-s strict_mode] [-c CC] [-x CXX] [-t run_tests] [-f cmake_config] [-i install_dir] [-p package]"
       exit 0 ;;
     s) strict_mode="$OPTARG" ;;
     c) CC="$OPTARG";;
     x) CXX="$OPTARG";;
     t) run_tests="$OPTARG";;
     f) cmake_config="$OPTARG";;
+    i) install_dir="$OPTARG";;
+    p) package="$OPTARG";;
   esac
 done
 shift $((OPTIND-1))
@@ -39,15 +43,28 @@ echo "run_tests: ${run_tests}";
 echo "config: ${cmake_config}";
 echo "CMAKE_OPTIONS: ${CMAKE_OPTIONS}";
 echo "NUM_JOBS: ${NUM_JOBS}";
+echo "install_dir: ${install_dir}";
+echo "package: ${package}";
 
 export CC;
 export CXX;
 
-rm -rf ${BUILD_DIR}
-cmake -S . -B ${BUILD_DIR} ${CMAKE_OPTIONS}
-cmake --build ${BUILD_DIR} -j ${NUM_JOBS}
+rm -rf "${BUILD_DIR}"
+cmake -S . -B "${BUILD_DIR}" ${CMAKE_OPTIONS}
+cmake --build "${BUILD_DIR}" -j ${NUM_JOBS}
 
-if [[ $run_tests -ne 0 ]]; then
-  cd ${BUILD_DIR}
+if [[ ${run_tests} -ne 0 ]]; then
+  cd "${BUILD_DIR}"
   ctest --output-on-failure -C ${cmake_config} -j ${NUM_JOBS}
+  cd -
+fi
+
+if [[ -n "${install_dir}" ]]; then
+  cmake --install ${BUILD_DIR} --prefix ${install_dir} --config ${cmake_config}
+fi
+
+if [[ ${package} -ne 0 ]]; then
+  cd "${BUILD_DIR}"
+  cpack -C ${cmake_config} -G TGZ
+  cd -
 fi
