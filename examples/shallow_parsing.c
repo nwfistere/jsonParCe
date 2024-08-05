@@ -11,11 +11,11 @@ static int on_typed_object_value_cb(json_parce *parser, const char *key,
   return 0;
 }
 
-static int on_typed_array_value_cb(json_parce *parser, unsigned int index,
+static int on_typed_array_value_cb(json_parce *parser, size_t index,
                                    JSON_TYPE type, const char *value,
                                    size_t value_length) {
   (void)parser;
-  printf("%10s%10d%10d%20.*s\n", "-", index, type, (int)value_length, value);
+  printf("%10s%10d%10d%20.*s\n", "-", (int)index, type, (int)value_length, value);
   return 0;
 }
 

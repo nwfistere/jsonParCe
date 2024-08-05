@@ -70,18 +70,20 @@ static const char *json_errno_messages[] = {ERRNO_MAP(ERRNO_MSG_GEN)};
 typedef struct json_depth {
   unsigned int type : 1; // 0 is array, 1 is object
   unsigned int depth;
-  unsigned int array_index;
+  size_t array_index;
   const char *key;
   size_t key_len;
+  const char *json_pointer;
+  const char *json_path;
   struct json_depth *parent;
 } json_depth;
 
 typedef struct json_parce {
   size_t nread;
   size_t object_key_len;
+  size_t array_index;
   unsigned int state; // 6 bits
   unsigned int err;   // 4 bits
-  unsigned int array_index;
   unsigned int array_count;
   unsigned int object_count;
 
@@ -92,9 +94,10 @@ typedef struct json_parce {
 
   // deep parser members
   json_depth *current_depth;
-  unsigned int
-      max_depth; // Max depth to parse into, will return whole child json object
-                 // at this point. (zero means no max depth.)
+
+  // Max depth to parse into, will return whole child json object
+  // at this point. (zero means no max depth.)
+  unsigned int max_depth;
 
 #ifdef JSON_PARCE_STRICT_MODE
   // Flags for the current state
@@ -129,9 +132,8 @@ typedef int (*json_notice_cb)(json_parce *, JSON_TYPE);
 typedef int (*json_object_cb)(json_parce *parser, const char *key,
                               size_t key_len, JSON_TYPE type, const char *value,
                               size_t value_length);
-typedef int (*json_array_cb)(json_parce *parser, unsigned int index,
-                             JSON_TYPE type, const char *value,
-                             size_t value_length);
+typedef int (*json_array_cb)(json_parce *parser, size_t index, JSON_TYPE type,
+                             const char *value, size_t value_length);
 
 typedef struct json_parce_callbacks {
   json_object_cb on_object_key_value_pair;

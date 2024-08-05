@@ -27,6 +27,16 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
+#ifdef _WIN32
+  if (!setlocale(LC_ALL, ".UTF-8")) {
+    fprintf(stderr, "setlocale failed!\n");
+  }
+#else
+  if (!setlocale(LC_ALL, "C.utf8")) {
+    fprintf(stderr, "setlocale failed!\n");
+  }
+#endif
+
   int status = test_parsing(argv[1]);
 
   if (argc == 3) {
@@ -40,9 +50,8 @@ int test_on_end(json_parce *parser, JSON_TYPE type) { return 0; }
 
 int test_on_start(json_parce *parser, JSON_TYPE type) { return 0; }
 
-int test_JSONTestSuite_array(json_parce *parser, unsigned int index,
-                             JSON_TYPE type, const char *value,
-                             size_t value_length) {
+int test_JSONTestSuite_array(json_parce *parser, size_t index, JSON_TYPE type,
+                             const char *value, size_t value_length) {
   validate_value(type, value, value_length);
   return 0;
 }
@@ -87,7 +96,7 @@ int test_parsing(char *path) {
     }
 
     sprintf(filepath, "%s\\%s", path, fd.cFileName);
-    filesize = fd.nFileSizeLow;
+    filesize = ( (uint64_t)(fd.nFileSizeHigh) << 32 ) | fd.nFileSizeLow;
     filename = fd.cFileName;
 #else
   DIR *d = opendir(path);
@@ -148,10 +157,11 @@ int test_parsing(char *path) {
         }
       }
 
+      printf("file: %s, size: %zd, error: %d\n", filepath, filesize, parser.err);
       if (!ignore && (parser.err || (filesize != retval))) {
         fprintf(stderr, "\nERROR: \"%s\" FAILED\n", filepath);
         if (filesize != retval) {
-          fprintf(stderr, "\texpected: %zd, actual: %zd\n", filesize, retval);
+          fprintf(stderr, "\t%d: expected: %zd, actual: %zd\n", __LINE__, filesize, retval);
         }
         if (parser.err) {
           fprintf(stderr, "\t%s (%d) \n", json_errno_messages[parser.err],
@@ -169,7 +179,7 @@ int test_parsing(char *path) {
           (filesize != retval && (strstr(filename, "16") == NULL))) {
         fprintf(stderr, "\nWARNING: \"%s\" FAILED\n", filepath);
         if (filesize != retval) {
-          fprintf(stderr, "\texpected: %zd, actual: %zd\n", filesize, retval);
+          fprintf(stderr, "\t%d: expected: %zd, actual: %zd\n", __LINE__, filesize, retval);
         }
         if (parser.err) {
           fprintf(stderr, "\t%s (%d) \n", json_errno_messages[parser.err],
@@ -209,7 +219,7 @@ int test_transform_on_end(json_parce *parser, JSON_TYPE type) { return 0; }
 
 int test_transform_on_start(json_parce *parser, JSON_TYPE type) { return 0; }
 
-int test_transform_array(json_parce *parser, unsigned int index, JSON_TYPE type,
+int test_transform_array(json_parce *parser, size_t index, JSON_TYPE type,
                          const char *value, size_t value_length) {
   printf("[%s] - \"%*.s\" -> ", test_testname_string, (int)value_length, value);
   switch (type) {
@@ -385,7 +395,7 @@ int test_transform(char *path) {
     if (parser.err || (filesize != retval)) {
       fprintf(stderr, "\nERROR: \"%s\" FAILED\n", filepath);
       if (filesize != retval) {
-        fprintf(stderr, "\texpected: %zd, actual: %zd\n", filesize, retval);
+        fprintf(stderr, "\t%d: expected: %zd, actual: %zd\n", __LINE__, filesize, retval);
       }
       if (parser.err) {
         fprintf(stderr, "\t%s (%d) \n", json_errno_messages[parser.err],

@@ -10,7 +10,7 @@ set(JSON_PARCE_ENABLE_STRICT_MODE OFF CACHE BOOL "Enables compiling with strict 
 set(JSON_PARCE_DEBUG_TEST OFF CACHE BOOL "Enables verbose logging during test.")
 
 
-project(json_parce LANGUAGES C VERSION 0.0.4)
+project(json_parce LANGUAGES C VERSION 0.0.5)
 set(C_STANDARD 11)
 
 include(FetchContent)
@@ -24,6 +24,7 @@ FetchContent_Declare(
 )
 
 if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
+  # NOTE /utf-8 flag. This library runs with the utf8 encoding by default.
   # MSVC Warning 4820 warns about padded bytes in struct.
   # MSVC Warning 5045 warns about spectre protection
   # MSVC Warning 4996 warns about using strdup
@@ -32,10 +33,11 @@ if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
   # MSVC Warning 4711 warns about auto-inline of non-inlined functions during optimization.
   # MSVC Warning 4710 warns about not inlining a specific function
   # C4476, 4474 testing
-  set(JSON_PARCE_COMPILE_OPTIONS /nologo /Wall /WX /wd4820 /wd5045 /wd4996 /wd4127 /wd4333 /wd4711 /wd4710)
+  set(JSON_PARCE_COMPILE_OPTIONS /nologo /Wall /WX /utf-8 /wd4820 /wd5045 /wd4996 /wd4127 /wd4333 /wd4711 /wd4710)
   list(APPEND JSON_PARCE_COMPILE_DEFINITIONS /D_CRT_SECURE_NO_WARNINGS)
   if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    list(APPEND JSON_PARCE_COMPILE_OPTIONS /Ox)
+    # list(APPEND JSON_PARCE_COMPILE_OPTIONS /Ox)
+    # string(REPLACE "/RTC1" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
   else()
     list(APPEND JSON_PARCE_COMPILE_OPTIONS /Od /Zi /RTCcsu /MP)
   endif() # CMAKE_BUILD_TYPE STREQUAL "Release"
@@ -160,20 +162,40 @@ install(
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/JsonParCe
 )
 
+set(INCLUDE_INSTALL_DIR include)
+set(LIBRARY_INSTALL_DIR lib)
+set(BINARY_INSTALL_DIR bin)
+
 # Create config file and install it.
 configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Config.cmake.in
   "${CMAKE_CURRENT_BINARY_DIR}/JsonParCeConfig.cmake"
   INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/JsonParCe
+  PATH_VARS
+  INCLUDE_INSTALL_DIR
+  LIBRARY_INSTALL_DIR
+  BINARY_INSTALL_DIR
+)
+
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/JsonParCeConfigVersion.cmake"
+  VERSION "${VERSION}"
+  COMPATIBILITY ExactVersion
 )
 
 install(FILES
   "${CMAKE_CURRENT_BINARY_DIR}/JsonParCeConfig.cmake"
-  # "${CMAKE_CURRENT_BINARY_DIR}/JsonParCeConfigVersion.cmake" TODO: Create a version file.
+  "${CMAKE_CURRENT_BINARY_DIR}/JsonParCeConfigVersion.cmake"
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/JsonParCe
 )
 
-set(CPACK_GENERATOR "TGZ")
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE" DESTINATION .)
+
 set(CPACK_PACKAGE_NAME JsonParCe)
 set(CPACK_PACKAGE_VENDOR nwfistere)
+set(CPACK_PACKAGE_CONTACT "Nick Fistere")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A callback based json parser.")
+set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-v${CMAKE_PROJECT_VERSION}-${CMAKE_SYSTEM_NAME}")
 
-include(CPack) # For packaging
+include(CPack)
+
+

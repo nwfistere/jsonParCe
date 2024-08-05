@@ -6,11 +6,11 @@
 #include <string.h>
 
 #ifdef MAX
-  #undef MAX;
+#undef MAX;
 #endif
 
 #ifdef MIN
-  #undef MIN;
+#undef MIN;
 #endif
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
@@ -232,21 +232,7 @@
     REEXECUTE();                                                               \
   } else {                                                                     \
     json_depth *new_depth = (json_depth *)malloc(sizeof(json_depth));          \
-    json_depth_init(new_depth);                                                \
-    new_depth->depth = parser->current_depth->depth + 1;                       \
-    new_depth->parent = parser->current_depth;                                 \
-    new_depth->key = parser->object_key_mark;                                  \
-    new_depth->key_len = parser->object_key_len;                               \
-    new_depth->array_index = parser->array_index;                              \
-    if (ch == OCB) {                                                           \
-      new_depth->type = 1;                                                     \
-    } else {                                                                   \
-      /* leave type as zero for array. */                                      \
-    }                                                                          \
-    parser->object_key_mark = NULL;                                            \
-    parser->object_key_len = 0;                                                \
-    parser->array_index = 0;                                                   \
-    parser->current_depth = new_depth;                                         \
+    json_depth_init_child(new_depth, parser, ch);                              \
     UPDATE_STATE(NEW_STATE);                                                   \
   }                                                                            \
   break;
@@ -369,6 +355,23 @@ enum state {
 
 static void json_depth_init(json_depth *depth) {
   memset(depth, 0, sizeof(*depth));
+}
+
+static void json_depth_init_child(json_depth *depth, json_parce *parser,
+                                  char ch) {
+  json_depth_init(depth);
+  depth->depth = parser->current_depth->depth + 1;
+  depth->parent = parser->current_depth;
+  depth->key = parser->object_key_mark;
+  depth->key_len = parser->object_key_len;
+  depth->array_index = parser->array_index;
+  if (ch == OCB) {
+    depth->type = 1;
+  } // else leave type as zero for array.
+  parser->object_key_mark = NULL;
+  parser->object_key_len = 0;
+  parser->array_index = 0;
+  parser->current_depth = depth;
 }
 
 JSON_PARCE_API void json_parce_init(json_parce *parser) {
@@ -1307,6 +1310,7 @@ static size_t do_json_parce_execute_file(json_parce *parser,
 JSON_PARCE_API size_t json_parce_execute_file(json_parce *parser,
                                               json_parce_callbacks *callbacks,
                                               const char *file) {
+  printf("opening \"%s\"\n", file);
   return do_json_parce_execute_file(parser, callbacks, file, 0);
 }
 

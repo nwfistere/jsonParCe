@@ -5,3 +5,10 @@ compile_commands.json
 .vscode/
 *.gcov
 CMakeUserPresets.json
+compilers/
+dockerfiles/
+.dockerignore
+output/
+reports/
+reports_html/
+output*

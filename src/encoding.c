@@ -65,7 +65,8 @@ JSON_PARCE_API int get_file_info(const char *filepath, FILE **fp, int *encoding,
   uint8_t bytes[READ_SIZE];
   uint8_t *p = &bytes[0];
 
-  *fp = fopen(filepath, "r");
+  // opening in byte mode to not modify the file.
+  *fp = fopen(filepath, "rb"); 
   if (!*fp) {
     return -1;
   }
@@ -97,35 +98,6 @@ JSON_PARCE_API int get_file_info(const char *filepath, FILE **fp, int *encoding,
   return 0;
 }
 
-static void do_set_local_locale(char **original_locale) {
-  char *locale;
-  if ((locale = setlocale(LC_CTYPE, NULL)) != NULL) {
-    *original_locale = strdup(locale);
-#ifdef _WIN32
-    const char *new_locale = ".utf8";
-#else
-    const char *new_locale = "";
-#endif
-    if (setlocale(LC_CTYPE, new_locale) == NULL) {
-      printf("Failed to set locale - LC_CTYPE\n");
-    }
-  }
-}
-
-static void do_unset_local_locale(char **original_locale) {
-  if (setlocale(LC_CTYPE, *original_locale) == NULL) {
-    // If unsetting fails, reset the locale to C default.
-    setlocale(LC_CTYPE, "C");
-  }
-  free(*original_locale);
-}
-
-#define set_local_locale()                                                     \
-  char *_original_locale = NULL;                                               \
-  do_set_local_locale(&_original_locale);
-
-#define unset_local_locale() do_unset_local_locale(&_original_locale);
-
 #define flip_endianess(TYPE, VALUE, RESULT)                                    \
   if (sizeof(TYPE) == 2) {                                                     \
     RESULT = (((VALUE >> 8) | (VALUE << 8)) & 0xFFFF);                         \
@@ -136,7 +108,6 @@ static void do_unset_local_locale(char **original_locale) {
 
 JSON_PARCE_API int c32strtomb(const char32_t *str, size_t len, int encoding,
                               char **out, size_t *out_len) {
-  set_local_locale();
   mbstate_t state = {0};
   *out = (char *)malloc(MB_CUR_MAX * (len + 1));
   char *p = *out;
@@ -160,13 +131,11 @@ JSON_PARCE_API int c32strtomb(const char32_t *str, size_t len, int encoding,
   *out_len = p - *out;
   (*out)[*out_len] = U'\0';
 
-  unset_local_locale();
   return 0;
 }
 
 JSON_PARCE_API int c16strtomb(const char16_t *str, size_t len, int encoding,
                               char **out, size_t *out_len) {
-  set_local_locale();
   mbstate_t state = {0};
   *out = (char *)malloc(MB_CUR_MAX * (len + 1));
   char *p = *out;
@@ -188,12 +157,10 @@ JSON_PARCE_API int c16strtomb(const char16_t *str, size_t len, int encoding,
   *out_len = p - *out;
   (*out)[(*out_len)] = u'\0';
 
-  unset_local_locale();
   return 0;
 }
 
 int mbstrtoc32(const char *str, size_t len, char32_t **out, size_t *out_len) {
-  set_local_locale();
   mbstate_t state = {0};
   const char *src = str;
   const char *src_end = src + strlen(str) + 1;
@@ -217,12 +184,10 @@ int mbstrtoc32(const char *str, size_t len, char32_t **out, size_t *out_len) {
 
   *out_len = converted_length;
 
-  unset_local_locale();
   return 0;
 }
 
 int mbstrtoc16(const char *str, size_t len, char16_t **out, size_t *out_len) {
-  set_local_locale();
   mbstate_t state = {0};
   const char *src = str;
   const char *src_end = src + strlen(str) + 1;
@@ -267,7 +232,6 @@ int mbstrtoc16(const char *str, size_t len, char16_t **out, size_t *out_len) {
 
   *out_len = converted_length;
 
-  unset_local_locale();
   return 0;
 }
 

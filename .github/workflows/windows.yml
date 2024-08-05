@@ -1,0 +1,46 @@
+# github actions cannot seem to run windows containers yet,
+# so call the entrypoint.ps1 script for now.
+
+name: Windows executions
+
+on:
+  push:
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: write
+
+jobs:
+  windows-execution:
+    runs-on: windows-latest
+    strategy:
+      # Set fail-fast to false to ensure that feedback is delivered for all matrix combinations. Consider changing this to true when your workflow is stable.
+      fail-fast: true
+
+      matrix:
+        build_type: [Release]
+        strict_define: [ON, OFF]
+        tests_enabled: [ON]
+      
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Run Entrypoint
+        id: run_entrypoint
+        run: .\\docker\\windows\\entrypoint.ps1
+              -s ${{ matrix.strict_define }} \
+              -t ${{ matrix.tests_enabled }} \
+              -c ${{ matrix.build_type }} \
+              -i ./install \
+              -p 1
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: (startsWith(github.ref, 'refs/tags/')) && (${{ matrix.strict_define }} == 'ON')
+        with:
+          files:
+            ${{ github.workspace }}/build/windows_ON_Release/JsonParCe-${{github.ref_name}}-Windows.zip
