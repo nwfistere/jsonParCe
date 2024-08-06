@@ -5,149 +5,69 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef MAX
-#undef MAX;
-#endif
+enum state {
+  s_done = JSON_PARCE_DONE_STATE,
+  s_dead = 1,
+  s_start,
+  s_parse_array_start,
+  s_parse_array,
+  s_parse_array_string,
+  s_parse_array_numeric,
+  s_parse_array_nu,
+  s_parse_array_nul,
+  s_parse_array_null,
+  s_parse_array_tr,
+  s_parse_array_tru,
+  s_parse_array_true,
+  s_parse_array_fa,
+  s_parse_array_fal,
+  s_parse_array_fals,
+  s_parse_array_false,
+  s_parse_array_find_array_end,
+  s_parse_array_find_array_end_string_end,
+  s_parse_array_find_object_end_string_end,
+  s_parse_array_item_end,
+  s_parse_array_find_object_end,
+  s_parse_object_start,
+  s_parse_object,
+  s_parse_object_parse_key,
+  s_parse_object_parse_key_end,
+  s_parse_object_colon,
+  s_parse_object_value,
+  s_parse_object_value_string,
+  s_parse_object_value_numeric,
+  s_parse_object_value_nu,
+  s_parse_object_value_nul,
+  s_parse_object_value_null,
+  s_parse_object_value_tr,
+  s_parse_object_value_tru,
+  s_parse_object_value_true,
+  s_parse_object_value_fa,
+  s_parse_object_value_fal,
+  s_parse_object_value_fals,
+  s_parse_object_value_false,
+  s_parse_object_value_find_array_end,
+  s_parse_object_value_find_array_end_string_end,
+  s_parse_object_value_find_object_end,
+  s_parse_object_value_find_object_end_string_end,
+  s_parse_object_value_end,
+  s_parse_array_between_values,
+  s_parse_object_between_values,
+  s_parse_BOM_EF,
+  s_parse_BOM_BB,
+  s_parse_BOM_BF,
+  s_handle_escaped_character,
+  s_handle_escaped_unicode_character_0,
+  s_handle_escaped_unicode_character_1,
+  s_handle_escaped_unicode_character_2,
+  s_handle_escaped_unicode_character_3,
+  s_handle_numeric_significand,
+  s_handle_numeric_fraction,
+  s_handle_numeric_exponent
+};
 
-#ifdef MIN
-#undef MIN;
-#endif
-
-#define MAX(x, y) (((x) > (y)) ? (x) : (y))
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
-
-#define SET_ERR(e)                                                             \
-  parser->err = (e);                                                           \
-  parser->line = __LINE__;                                                     \
-  parser->file = __FILE__;                                                     \
-  parser->func = __func__;
-
-#define SET_ERRNO(e)                                                           \
-  do {                                                                         \
-    parser->nread = nread;                                                     \
-    SET_ERR(e);                                                                \
-  } while (0)
-#define RETURN(V)                                                              \
-  do {                                                                         \
-    parser->nread = (size_t)nread;                                             \
-    parser->state = (unsigned int)p_state;                                     \
-    return (V);                                                                \
-  } while (0)
-
-#define JSON_ERRNO(parser) ((enum json_errno)(parser->err))
-#define MARK_ARRAY_ITEM_START(P) parser->array_item_mark = (P)
-#define MARK_OBJECT_KEY_START(P) parser->object_key_mark = (P)
-#define MARK_OBJECT_KEY_LENGTH(P)                                              \
-  parser->object_key_len = (size_t)((P)-parser->object_key_mark)
-#define MARK_OBJECT_VALUE_START(P) parser->object_value_mark = (P)
-
-#define SET_TYPE_VALUE(TYPE, VALUE, LENGTH)                                    \
-  GET_TYPE(VALUE[0], TYPE);                                                    \
-  if ((TYPE) == STRING) {                                                      \
-    /* Remove '"' from each side. */                                           \
-    (VALUE)++;                                                                 \
-    (LENGTH) -= 2;                                                             \
-  }
-
-#define P_OBJECT_CALLBACK(VALUE_LENGTH)                                        \
-  if (callbacks->on_object_key_value_pair) {                                   \
-    enum JSON_TYPE type = NONE;                                                \
-    size_t l_value_length = (VALUE_LENGTH);                                    \
-    SET_TYPE_VALUE(type, parser->object_value_mark, l_value_length)            \
-    int callback_retval = 0;                                                   \
-    char *key =                                                                \
-        json_parce_string(parser->object_key_mark, parser->object_key_len);    \
-    if (!key) {                                                                \
-      SET_ERRNO(ERRNO_INVALID_OBJECT_KEY);                                     \
-      goto error;                                                              \
-    }                                                                          \
-    if ((callback_retval = callbacks->on_object_key_value_pair(                \
-             parser, key, strlen(key), type, parser->object_value_mark,        \
-             l_value_length)) > 0) {                                           \
-      SET_ERRNO(callback_retval == 2 ? ERRNO_CALLBACK_REQUESTED_STOP           \
-                                     : ERRNO_CALLBACK_FAILED);                 \
-      free(key);                                                               \
-      goto error;                                                              \
-    }                                                                          \
-    free(key);                                                                 \
-  }
-#define OBJECT_CALLBACK() P_OBJECT_CALLBACK((p - parser->object_value_mark) + 1)
-#define OBJECT_CALLBACK_NOADVANCE()                                            \
-  P_OBJECT_CALLBACK((p - parser->object_value_mark))
-
-#define P_ARRAY_CALLBACK(VALUE_LENGTH)                                         \
-  if (callbacks->on_array_value) {                                             \
-    enum JSON_TYPE type = NONE;                                                \
-    size_t l_value_length = (VALUE_LENGTH);                                    \
-    SET_TYPE_VALUE(type, parser->array_item_mark, l_value_length)              \
-    int callback_retval = 0;                                                   \
-    if ((callback_retval = callbacks->on_array_value(                          \
-             parser, parser->array_index, type, (parser->array_item_mark),     \
-             (l_value_length))) > 0) {                                         \
-      SET_ERRNO(callback_retval == 2 ? ERRNO_CALLBACK_REQUESTED_STOP           \
-                                     : ERRNO_CALLBACK_FAILED);                 \
-      goto error;                                                              \
-    }                                                                          \
-  }                                                                            \
-  parser->array_index++
-
-// Notify the consumer of start or end of parent container.
-#define NOTIFY(CALLBACK)                                                       \
-  assert(ch == OB || ch == CB || ch == OCB || ch == CCB);                      \
-  if (CALLBACK) {                                                              \
-    enum JSON_TYPE type = ((ch == OB || ch == CB) ? ARRAY : OBJECT);           \
-    int callback_retval = 0;                                                   \
-    if ((callback_retval = CALLBACK(parser, type)) > 0) {                      \
-      SET_ERRNO(callback_retval == 2 ? ERRNO_CALLBACK_REQUESTED_STOP           \
-                                     : ERRNO_CALLBACK_FAILED);                 \
-      goto error;                                                              \
-    }                                                                          \
-  }
-
-#define FIND_STRING_END(CHAR, NEW_STATE)                                       \
-  if (CHAR == QM) {                                                            \
-    UPDATE_STATE(NEW_STATE);                                                   \
-  } else if (ch == '\\') {                                                     \
-    HANDLE_ESCAPED_CHARACTER(CHAR)                                             \
-  }                                                                            \
-  CHECK_FOR_UNESCAPED_CHARACTERS(CHAR)                                         \
-  break;
-
-#ifdef JSON_PARCE_STRICT_MODE
-#define CHECK_FOR_UNESCAPED_CHARACTERS(CHAR)                                   \
-  if (SHOULD_ESCAPE(CHAR)) {                                                   \
-    SET_ERRNO(ERRNO_INVALID_CHARACTER);                                        \
-    goto error;                                                                \
-  }
-#else
-#define CHECK_FOR_UNESCAPED_CHARACTERS(CHAR)
-#endif
-
-#ifdef JSON_PARCE_STRICT_MODE
-#define HANDLE_ESCAPED_CHARACTER(CHAR)                                         \
-  parser->return_state =                                                       \
-      p_state; /* save current state to go back after escaped character */     \
-  UPDATE_STATE(s_handle_escaped_character);                                    \
-  break;
-#else
-#define HANDLE_ESCAPED_CHARACTER(CHAR)                                         \
-  p++;                                                                         \
-  break;
-#endif
-
-#define FIND_STRING_END_REEXECUTE(CHAR, NEW_STATE)                             \
-  if (CHAR == QM) {                                                            \
-    UPDATE_STATE(NEW_STATE);                                                   \
-    REEXECUTE();                                                               \
-  } else if (ch == '\\') {                                                     \
-    HANDLE_ESCAPED_CHARACTER(CHAR)                                             \
-  }                                                                            \
-  CHECK_FOR_UNESCAPED_CHARACTERS(CHAR)                                         \
-  break;
-
-#define ARRAY_CALLBACK() P_ARRAY_CALLBACK((p - parser->array_item_mark) + 1)
-#define ARRAY_CALLBACK_NOADVANCE()                                             \
-  P_ARRAY_CALLBACK((p - parser->array_item_mark))
+#define JSON_PARCE_MAX(x, y) (((x) > (y)) ? (x) : (y))
+#define JSON_PARCE_MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 #define OB '['
 #define CB ']'
@@ -179,49 +99,159 @@
   (((CH) >= '0' && (CH) <= '9') || ((CH) >= 'a' && (CH) <= 'f') ||             \
    ((CH) >= 'A' && (CH) <= 'F'))
 
-#define GET_TYPE(C, T)                                                         \
-  switch (C) {                                                                 \
-  case QM: {                                                                   \
-    (T) = STRING;                                                              \
-    break;                                                                     \
-  }                                                                            \
-  case OB: {                                                                   \
-    (T) = ARRAY;                                                               \
-    break;                                                                     \
-  }                                                                            \
-  case OCB: {                                                                  \
-    (T) = OBJECT;                                                              \
-    break;                                                                     \
-  }                                                                            \
-  case 'n': {                                                                  \
-    (T) = NULL_TYPE;                                                           \
-    break;                                                                     \
-  }                                                                            \
-  case 't':                                                                    \
-  case 'f': {                                                                  \
-    (T) = BOOL_TYPE;                                                           \
-    break;                                                                     \
-  }                                                                            \
-  case '0':                                                                    \
-  case '1':                                                                    \
-  case '2':                                                                    \
-  case '3':                                                                    \
-  case '4':                                                                    \
-  case '5':                                                                    \
-  case '6':                                                                    \
-  case '7':                                                                    \
-  case '8':                                                                    \
-  case '9':                                                                    \
-  case '-': {                                                                  \
-    (T) = NUMBER;                                                              \
-    break;                                                                     \
-  }                                                                            \
-  default: {                                                                   \
-    (T) = NONE;                                                                \
-    SET_ERRNO(ERRNO_INVALID_CHARACTER);                                        \
-    goto error;                                                                \
-  }                                                                            \
+inline static void set_err(json_parce *parser, int err) {
+  // parser->nread = nread; // getting rid of nread;
+  parser->err  = err;
+  parser->line = __LINE__;
+  parser->file = __FILE__;
+  parser->func = __func__;
+}
+
+#define RETURN(V)                                                              \
+  do {                                                                         \
+    parser->nread = (size_t)nread;                                             \
+    parser->state = (unsigned int)p_state;                                     \
+    return (V);                                                                \
+  } while (0)
+
+#define SET_TYPE_VALUE(TYPE, VALUE, LENGTH)                                    \
+  GET_TYPE(VALUE[0], TYPE);                                                    \
+  if ((TYPE) == STRING) {                                                      \
+    /* Remove '"' from each side. */                                           \
+    (VALUE)++;                                                                 \
+    (LENGTH) -= 2;                                                             \
   }
+
+void json_parce_do_call_object_callback(json_parce* parser, json_parce_callbacks *callbacks, size_t value_len) {
+  if (callbacks->on_object_key_value_pair) {
+    enum JSON_TYPE type = NONE;
+    SET_TYPE_VALUE(type, parser->object_value_mark, value_len)
+    int callback_retval = 0;
+    char* key = json_parce_string(parser->object_key_mark, parser->object_key_len);
+    if (!key) {
+      set_err(parser, ERRNO_INVALID_OBJECT_KEY);
+      return;
+    }
+    if ((callback_retval = callbacks->on_object_key_value_pair(parser, key, strlen(key), type, parser->object_value_mark, value_len)) > 0) {
+      set_err(parser, callback_retval == 2 ? ERRNO_CALLBACK_REQUESTED_STOP : ERRNO_CALLBACK_FAILED);
+    }
+    free(key);
+  }
+}
+
+inline void json_parce_object_callback(json_parce* parser, json_parce_callbacks *callbacks, char* p) {
+  json_parce_do_call_object_callback(parser, callbacks, (p - parser->object_value_mark) + 1);
+}
+
+inline void json_parce_object_callback_noadvance(json_parce* parser, json_parce_callbacks *callbacks, char* p) {
+  json_parce_do_call_object_callback(parser, callbacks, p - parser->object_value_mark);
+}
+
+void json_parce_do_call_array_callback(json_parce* parser, json_parce_callbacks *callbacks, size_t value_len) {
+  if (callbacks->on_array_value) {
+    enum JSON_TYPE type = NONE;
+    SET_TYPE_VALUE(type, parser->object_value_mark, value_len)
+    int callback_retval = 0;
+    if ((callback_retval = callbacks->on_array_value(parser, parser->array_index, type, (parser->array_item_mark), value_len)) > 0) {
+      set_err(parser, callback_retval == 2 ? ERRNO_CALLBACK_REQUESTED_STOP : ERRNO_CALLBACK_FAILED);
+    }
+  }
+  parser->array_index++;
+}
+
+static inline void json_parce_handle_escaped_character(json_parce* parser) {
+#ifdef JSON_PARCE_STRICT_MODE
+  parser->return_state = parser->state;
+  parser->state = s_handle_escaped_character;
+#else
+  // TODO: !FIX!
+  // go to the next character
+  // p++;
+#endif
+}
+
+void json_parce_notify(json_parce* parser, const char ch, json_notice_cb* callback) {
+  assert(ch == OB || ch == CB || ch == OCB || ch == CCB);
+
+  if (callback) {
+    enum JSON_TYPE type = ((ch == OB || ch == CB) ? ARRAY : OBJECT);
+    int callback_retval = 0;
+    if ((callback_retval = (*callback)(parser, type)) > 0) {
+      set_err(parser, callback_retval == 2 ? ERRNO_CALLBACK_REQUESTED_STOP : ERRNO_CALLBACK_FAILED);
+    }
+  }
+}
+
+void do_find_string_end(json_parce* parser, const char ch, int new_state, const int reexecute) {
+  if (ch == QM) {
+    UPDATE_STATE(new_state);
+    if (reexecute) {
+      // reexecute.
+    }
+  } else if (ch == '\\') {
+    json_parce_handle_escaped_character(parser);
+  }
+  CHECK_FOR_UNESCAPED_CHARACTERS(ch);
+}
+
+static inline void find_string_end(json_parce* parser, const char ch, int new_state) {
+  do_find_string_end(parser, ch, new_state, 0);
+}
+
+static inline void find_string_end_reexecute(json_parce* parser, const char ch, int new_state) {
+  do_find_string_end(parser, ch, new_state, 1);
+}
+
+#define FIND_STRING_END(CHAR, NEW_STATE)                                       \
+  if (CHAR == QM) {                                                            \
+    UPDATE_STATE(NEW_STATE);                                                   \
+  } else if (ch == '\\') {                                                     \
+    HANDLE_ESCAPED_CHARACTER(CHAR)                                             \
+  }                                                                            \
+  CHECK_FOR_UNESCAPED_CHARACTERS(CHAR)                                         \
+  break;
+
+static inline void json_parce_check_for_unescaped_characters(json_parce* parser, const char ch) {
+#ifdef JSON_PARCE_STRICT_MODE
+  if (SHOULD_ESCAPE(ch)) {
+    set_err(parser, ERRNO_INVALID_CHARACTER);
+  }
+#else
+  (void) parser;
+  (void) ch;
+#endif
+}
+
+#define ARRAY_CALLBACK() P_ARRAY_CALLBACK((p - parser->array_item_mark) + 1)
+#define ARRAY_CALLBACK_NOADVANCE()                                             \
+  P_ARRAY_CALLBACK((p - parser->array_item_mark))
+
+
+static inline JSON_TYPE json_parce_get_type(const char ch) {
+  switch (ch) {
+    case QM: return STRING;
+    case OB: return ARRAY;
+    case OCB: return OBJECT;
+    case 'n': return NULL_TYPE;
+
+    case 't':
+    case 'f': return BOOL_TYPE;
+
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+    case '-': return NUMBER;
+
+    default: return NONE;
+  }
+}
 
 #define INCREASE_DEPTH(NEW_STATE, MAX_DEPTH_STATE)                             \
   NOTIFY(callbacks->on_start);                                                 \
@@ -292,67 +322,6 @@
 
 #endif
 
-enum state {
-  s_done = JSON_PARCE_DONE_STATE,
-  s_dead = 1,
-  s_start,
-  s_parse_array_start,
-  s_parse_array,
-  s_parse_array_string,
-  s_parse_array_numeric,
-  s_parse_array_nu,
-  s_parse_array_nul,
-  s_parse_array_null,
-  s_parse_array_tr,
-  s_parse_array_tru,
-  s_parse_array_true,
-  s_parse_array_fa,
-  s_parse_array_fal,
-  s_parse_array_fals,
-  s_parse_array_false,
-  s_parse_array_find_array_end,
-  s_parse_array_find_array_end_string_end,
-  s_parse_array_find_object_end_string_end,
-  s_parse_array_item_end,
-  s_parse_array_find_object_end,
-  s_parse_object_start,
-  s_parse_object,
-  s_parse_object_parse_key,
-  s_parse_object_parse_key_end,
-  s_parse_object_colon,
-  s_parse_object_value,
-  s_parse_object_value_string,
-  s_parse_object_value_numeric,
-  s_parse_object_value_nu,
-  s_parse_object_value_nul,
-  s_parse_object_value_null,
-  s_parse_object_value_tr,
-  s_parse_object_value_tru,
-  s_parse_object_value_true,
-  s_parse_object_value_fa,
-  s_parse_object_value_fal,
-  s_parse_object_value_fals,
-  s_parse_object_value_false,
-  s_parse_object_value_find_array_end,
-  s_parse_object_value_find_array_end_string_end,
-  s_parse_object_value_find_object_end,
-  s_parse_object_value_find_object_end_string_end,
-  s_parse_object_value_end,
-  s_parse_array_between_values,
-  s_parse_object_between_values,
-  s_parse_BOM_EF,
-  s_parse_BOM_BB,
-  s_parse_BOM_BF,
-  s_handle_escaped_character,
-  s_handle_escaped_unicode_character_0,
-  s_handle_escaped_unicode_character_1,
-  s_handle_escaped_unicode_character_2,
-  s_handle_escaped_unicode_character_3,
-  s_handle_numeric_significand,
-  s_handle_numeric_fraction,
-  s_handle_numeric_exponent
-};
-
 static void json_depth_init(json_depth *depth) {
   memset(depth, 0, sizeof(*depth));
 }
@@ -394,8 +363,8 @@ static size_t do_json_parce_execute(json_parce *parser,
                                     const char *data, size_t len,
                                     const int deep) {
   const char *p = data;
-  enum state p_state = (enum state)parser->state;
-  size_t nread = parser->nread;
+  // enum state p_state = (enum state)parser->state;
+  // size_t nread = parser->nread;
   char ch;
 
   for (p = data; p < data + len; p++) {
@@ -458,7 +427,7 @@ static size_t do_json_parce_execute(json_parce *parser,
       if (IS_WHITESPACE(ch)) {
         break;
       }
-      MARK_ARRAY_ITEM_START(p);
+      parser->array_item_mark = p;
       if (ch == OB) {
         if (deep) {
           INCREASE_DEPTH(s_parse_array_start, s_parse_array_find_array_end);
@@ -685,7 +654,7 @@ static size_t do_json_parce_execute(json_parce *parser,
         break;
       }
       if (ch == QM) {
-        MARK_OBJECT_KEY_START(p + 1);
+        parser->object_key_mark = p + 1;
         UPDATE_STATE(s_parse_object_parse_key);
       } else {
         SET_ERRNO(ERRNO_INVALID_CHARACTER);
@@ -697,7 +666,7 @@ static size_t do_json_parce_execute(json_parce *parser,
       FIND_STRING_END_REEXECUTE(ch, s_parse_object_parse_key_end);
     }
     case s_parse_object_parse_key_end: {
-      MARK_OBJECT_KEY_LENGTH(p);
+      parser->object_key_len = (size_t)(p - parser->object_key_mark);
       UPDATE_STATE(s_parse_object_colon);
       break;
     }
@@ -713,7 +682,7 @@ static size_t do_json_parce_execute(json_parce *parser,
       if (IS_WHITESPACE(ch)) {
         break;
       }
-      MARK_OBJECT_VALUE_START(p);
+      parser->object_value_mark = p;
       if (ch == QM) {
         UPDATE_STATE(s_parse_object_value_string);
       } else if (ch == OCB) {
