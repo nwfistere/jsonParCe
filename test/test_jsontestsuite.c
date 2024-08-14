@@ -96,7 +96,7 @@ int test_parsing(char *path) {
     }
 
     sprintf(filepath, "%s\\%s", path, fd.cFileName);
-    filesize = ( (uint64_t)(fd.nFileSizeHigh) << 32 ) | fd.nFileSizeLow;
+    filesize = ((uint64_t)(fd.nFileSizeHigh) << 32) | fd.nFileSizeLow;
     filename = fd.cFileName;
 #else
   DIR *d = opendir(path);
@@ -157,11 +157,13 @@ int test_parsing(char *path) {
         }
       }
 
-      printf("file: %s, size: %zd, error: %d\n", filepath, filesize, parser.err);
+      printf("file: %s, size: %zd, error: %d\n", filepath, filesize,
+             parser.err);
       if (!ignore && (parser.err || (filesize != retval))) {
         fprintf(stderr, "\nERROR: \"%s\" FAILED\n", filepath);
         if (filesize != retval) {
-          fprintf(stderr, "\t%d: expected: %zd, actual: %zd\n", __LINE__, filesize, retval);
+          fprintf(stderr, "\t%d: expected: %zd, actual: %zd\n", __LINE__,
+                  filesize, retval);
         }
         if (parser.err) {
           fprintf(stderr, "\t%s (%d) \n", json_errno_messages[parser.err],
@@ -179,7 +181,8 @@ int test_parsing(char *path) {
           (filesize != retval && (strstr(filename, "16") == NULL))) {
         fprintf(stderr, "\nWARNING: \"%s\" FAILED\n", filepath);
         if (filesize != retval) {
-          fprintf(stderr, "\t%d: expected: %zd, actual: %zd\n", __LINE__, filesize, retval);
+          fprintf(stderr, "\t%d: expected: %zd, actual: %zd\n", __LINE__,
+                  filesize, retval);
         }
         if (parser.err) {
           fprintf(stderr, "\t%s (%d) \n", json_errno_messages[parser.err],
@@ -395,7 +398,8 @@ int test_transform(char *path) {
     if (parser.err || (filesize != retval)) {
       fprintf(stderr, "\nERROR: \"%s\" FAILED\n", filepath);
       if (filesize != retval) {
-        fprintf(stderr, "\t%d: expected: %zd, actual: %zd\n", __LINE__, filesize, retval);
+        fprintf(stderr, "\t%d: expected: %zd, actual: %zd\n", __LINE__,
+                filesize, retval);
       }
       if (parser.err) {
         fprintf(stderr, "\t%s (%d) \n", json_errno_messages[parser.err],

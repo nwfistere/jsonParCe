@@ -66,7 +66,7 @@ JSON_PARCE_API int get_file_info(const char *filepath, FILE **fp, int *encoding,
   uint8_t *p = &bytes[0];
 
   // opening in byte mode to not modify the file.
-  *fp = fopen(filepath, "rb"); 
+  *fp = fopen(filepath, "rb");
   if (!*fp) {
     return -1;
   }

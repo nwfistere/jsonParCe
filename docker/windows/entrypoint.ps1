@@ -80,6 +80,11 @@ $params = $params.Split(" ")
 
 & $command $params
 
+if($LastExitCode) {
+  Write-Output "Ctest failed with status: $LastExitCode";
+  Exit $LastExitCode;
+}
+
 if ($install_dir) {
   $command = "cmake.exe"
   $params = "--install $BUILD_DIR --prefix $install_dir --config $config"
