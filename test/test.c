@@ -169,6 +169,8 @@ int on_end(json_parce *parser, JSON_TYPE type) {
 int test_parsing();
 int test_json_parce_string();
 int test_process_unicode_string();
+int test_max_depth_object();
+int test_max_depth_array();
 int test_mbstrtoc16();
 int test_mbstrtoc32();
 
@@ -317,6 +319,8 @@ int main(int argc, char **argv) {
   test_parsing();
   test_json_parce_string();
   test_process_unicode_string();
+  test_max_depth_object();
+  test_max_depth_array();
   test_mbstrtoc16();
   test_mbstrtoc32();
 }
@@ -636,6 +640,60 @@ int test_process_unicode_string() {
   TEST_UNICODE_ERROR("\\uD800\\u0021", -2); // high surrogate + utf-8 character.
   TEST_UNICODE_ERROR("\\u0021\\uD800", -1); // utf-8 character + high surrogate.
   TEST_UNICODE_ERROR("\\u0021\\uDC00", -1); // utf-8 character + low surrogate.
+
+  return 0;
+}
+
+
+
+int test_max_depth_on_object_key_value_pair(json_parce *parser, const char *key, size_t key_length, JSON_TYPE type, const char *value, size_t value_length) {
+  (*((int*)parser->data)) = parser->current_depth->depth;
+  return 0;
+}
+
+int test_max_depth_on_array(json_parce *parser, size_t index, JSON_TYPE type, const char *value, size_t value_length) {
+  (*((int*)parser->data)) = parser->current_depth->depth;
+  return 0;
+}
+
+int test_max_depth_object() {
+  const char* json_str = "{\"a\":{\"b\":{\"c\":{\"d\":{\"e\":{\"f\":\"g\"}}}}}}";
+
+  size_t runs = 0;
+  json_parce parser;
+
+  json_parce_callbacks deep_cbs = {
+    .on_object_key_value_pair = test_max_depth_on_object_key_value_pair
+  };
+  json_parce_init(&parser);
+  parser.data = (void*)&runs;
+  parser.max_depth = 3;
+
+  int retval = json_deep_parce_execute(&parser, &deep_cbs, json_str, strlen(json_str));
+  TEST_ASSERT(runs == 3);
+  print_retval(retval, strlen(json_str), &parser);
+  json_parce_free(&parser);
+
+  return 0;
+}
+
+int test_max_depth_array() {
+  const char* json_str = "[[[[[[\"g\"]]]]]]";
+
+  size_t runs = 0;
+  json_parce parser;
+
+  json_parce_callbacks deep_cbs = {
+    .on_array_value = test_max_depth_on_array
+  };
+  json_parce_init(&parser);
+  parser.data = (void*)&runs;
+  parser.max_depth = 3;
+
+  int retval = json_deep_parce_execute(&parser, &deep_cbs, json_str, strlen(json_str));
+  TEST_ASSERT(runs == 3);
+  print_retval(retval, strlen(json_str), &parser);
+  json_parce_free(&parser);
 
   return 0;
 }
